@@ -219,3 +219,15 @@ test('an invoice due today is not overdue yet', async () => {
   assert.ok(!overdue.includes('TODAY-1'));
   assert.equal(inv.status, 'pending_approval');
 });
+
+test('line items set the total, including GST, and bad lines are refused', async () => {
+  const base = { vendor: globex._id, invoiceDate: day(0), dueDate: day(10), notes: '  Steel for bay 3  ' };
+  const lines = [{ description: 'MS angle', quantity: 2, rate: 100.5, gstRate: 18 }, { description: 'Loading', quantity: 1, rate: 40, gstRate: 0 }];
+  const inv = (await call('POST', '/api/invoices', tok.finance, { ...base, invoiceNumber: 'LINES-1', amount: 1, lines: JSON.stringify(lines) })).data;
+  assert.equal(inv.amount, 277.18); // 201 + 36.18 GST + 40
+  assert.equal(inv.lines.length, 2);
+  assert.equal(inv.notes, 'Steel for bay 3');
+  const bad = await call('POST', '/api/invoices', tok.finance, { ...base, invoiceNumber: 'LINES-2', lines: [{ description: 'x', quantity: 1, rate: 10, gstRate: 7 }] });
+  assert.equal(bad.status, 400);
+  assert.equal((await call('POST', '/api/invoices', tok.finance, { ...base, invoiceNumber: 'LINES-3', lines: '{oops' })).status, 400);
+});

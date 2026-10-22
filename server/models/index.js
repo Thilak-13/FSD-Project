@@ -34,6 +34,8 @@ const invoiceSchema = new Schema({
   amount: { type: Number, required: true },
   invoiceDate: { type: Date, required: true },
   dueDate: { type: Date, required: true },
+  lines: [{ _id: false, description: String, quantity: Number, rate: Number, gstRate: Number }],
+  notes: String,
   attachment: String,
   attachmentName: String,
   status: { type: String, enum: STATUSES, default: 'submitted', index: true },

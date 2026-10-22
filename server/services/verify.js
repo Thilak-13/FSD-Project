@@ -1,4 +1,13 @@
 export const PO_TOLERANCE = 0.02;
+export const GST_RATES = [0, 5, 12, 18, 28];
+
+// Shared with the client so the form shows the same totals the server stores.
+const r2 = (n) => Math.round(n * 100) / 100;
+export function lineTotals(lines) {
+  const taxable = r2(lines.reduce((s, l) => s + l.quantity * l.rate, 0));
+  const gst = r2(lines.reduce((s, l) => s + (l.quantity * l.rate * l.gstRate) / 100, 0));
+  return { taxable, gst, total: r2(taxable + gst) };
+}
 
 // Pure rule check. ctx: { vendor, duplicateCount, po, poInvoicedTotal } loaded by the caller.
 export function verify(inv, { vendor, duplicateCount = 0, po, poInvoicedTotal = 0 }) {

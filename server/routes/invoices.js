@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'node:path';
 import { Invoice, Vendor, PurchaseOrder } from '../models/index.js';
 import { requireRole } from '../middleware/auth.js';
-import { verify } from '../services/verify.js';
+import { verify, lineTotals, GST_RATES } from '../services/verify.js';
 import { notify } from '../services/notify.js';
 import { today, round2 } from '../services/dates.js';
 
@@ -52,8 +52,29 @@ async function runVerification(inv, userId) {
   return inv;
 }
 
-const fields = ({ invoiceNumber, vendor, purchaseOrder, amount, invoiceDate, dueDate }) =>
-  ({ invoiceNumber, vendor, purchaseOrder: purchaseOrder || undefined, amount: round2(amount), invoiceDate, dueDate });
+const badLines = () => Object.assign(new Error('Each line needs a description, a quantity above 0, a rate of 0 or more, and a GST rate of 0, 5, 12, 18 or 28%'), { status: 400 });
+
+// Lines arrive as a JSON string in multipart forms. Without lines, the entered amount is the total.
+function parseLines(raw) {
+  if (raw == null || raw === '') return undefined;
+  let lines;
+  try { lines = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { throw badLines(); }
+  if (!Array.isArray(lines) || !lines.length || lines.length > 100) throw badLines();
+  return lines.map((l) => {
+    const line = { description: String(l?.description ?? '').trim().slice(0, 200), quantity: Number(l?.quantity), rate: Number(l?.rate), gstRate: Number(l?.gstRate) };
+    if (!line.description || !(line.quantity > 0) || !(line.rate >= 0) || !GST_RATES.includes(line.gstRate)) throw badLines();
+    return line;
+  });
+}
+
+const fields = ({ invoiceNumber, vendor, purchaseOrder, amount, invoiceDate, dueDate, lines, notes }) => {
+  const parsed = parseLines(lines);
+  return {
+    invoiceNumber, vendor, purchaseOrder: purchaseOrder || undefined, invoiceDate, dueDate,
+    lines: parsed ?? [], notes: String(notes ?? '').trim().slice(0, 1000) || undefined,
+    amount: parsed ? lineTotals(parsed).total : round2(amount),
+  };
+};
 
 r.get('/', async (req, res) => {
   const { status, vendor, overdue } = req.query;

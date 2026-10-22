@@ -192,6 +192,17 @@ export default function InvoiceDetail() {
               <div><dt>Invoice date</dt><dd>{date(inv.invoiceDate)}</dd></div>
               <div><dt>Due date</dt><dd className={isOverdue(inv) ? 'late' : ''}>{date(inv.dueDate)}</dd></div>
             </dl>
+            {inv.lines?.length > 0 && (
+              <table className="compact" style={{ marginTop: '1rem' }}>
+                <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Rate</th><th className="num">GST</th><th className="num">Amount</th></tr></thead>
+                <tbody>
+                  {inv.lines.map((l, i) => (
+                    <tr key={i}><td>{l.description}</td><td className="num">{l.quantity}</td><td className="num">{money(l.rate)}</td><td className="num">{l.gstRate}%</td><td className="num">{money(l.quantity * l.rate * (1 + l.gstRate / 100))}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {inv.notes && <p className="small" style={{ marginTop: '1rem' }}><b>Note from finance:</b> {inv.notes}</p>}
           </section>
 
           <section className="panel">

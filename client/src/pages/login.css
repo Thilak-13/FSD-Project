@@ -1,0 +1,97 @@
+/* Sign-in page: the app's navy hero with a sample bill being checked; colours come from styles.css tokens. */
+.signin { display: grid; grid-template-columns: 11fr 9fr; min-height: 100vh; background: var(--surface); color: #0f172a; }
+
+/* Left: navy panel, same as the landing hero */
+.signin-book { background: var(--ink); color: #dfe5f1; padding: 40px clamp(24px, 6vw, 88px) 64px; display: flex; flex-direction: column; overflow: hidden; }
+.signin-logo { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 17px; color: #fff; align-self: flex-start; }
+.signin-logo:hover { text-decoration: none; }
+.signin-book :focus-visible { outline-color: #9db4ff; }
+.signin-book h1 { display: block; margin: auto 0 20px; padding-top: 64px; max-width: 13ch; font-family: var(--font-display); font-size: clamp(40px, 5vw, 64px); font-weight: 800; line-height: 1.02; letter-spacing: -.035em; color: #fff; }
+.signin-intro { margin: 0 0 48px; max-width: 42ch; font-size: 17px; line-height: 1.55; color: #95a3bd; }
+
+/* The sample bill */
+.bill { position: relative; margin: 0 0 auto; max-width: 460px; }
+.bill-copy { position: absolute; inset: 10px -10px -10px 10px; background: #22325a; border-radius: 4px; transform: rotate(1.6deg); }
+.bill-sheet { position: relative; background: var(--surface); border-radius: 4px; padding: 28px 28px 24px; box-shadow: 0 24px 48px -20px rgb(0 0 0 / .55); color: #0f172a; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* tear-off perforation along the top edge */
+.bill-sheet::before { content: ''; position: absolute; left: 12px; right: 12px; top: 10px; height: 4px; background: radial-gradient(circle, var(--ink) 1.6px, transparent 2px) 0 0 / 10px 4px repeat-x; }
+.bill-sheet header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.bill-sheet header b { display: block; font-size: 15px; }
+.bill-sheet header span { color: var(--muted); font-size: 13px; }
+.bill-sheet table { width: 100%; border-collapse: collapse; margin: 6px 0 18px; }
+.bill-sheet td { padding: 7px 0; }
+.bill-sheet td:last-child { text-align: right; white-space: nowrap; }
+.bill-sheet tfoot td { padding-top: 10px; border-top: 1px solid var(--ink); font-weight: 700; font-size: 16px; }
+
+.bill-checks { list-style: none; margin: 0; padding: 14px 140px 0 0; border-top: 1px dashed #cbd5e1; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.bill-checks li { display: flex; gap: 8px; align-items: center; }
+.bill-checks li::before { content: ''; flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--ok) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M4 7.2l2 2 4-4.4' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px; }
+
+.bill-stamp { position: absolute; right: 22px; bottom: 26px; padding: 6px 14px; border: 3px solid var(--ok); border-radius: 6px; color: var(--ok); font-family: var(--font-display); font-size: 22px; font-weight: 800; transform: rotate(-9deg); opacity: .9; }
+
+/* Right: the form */
+.signin-form { display: flex; align-items: center; padding: 48px clamp(24px, 6vw, 80px); }
+.signin-col { width: 100%; max-width: 360px; }
+.signin-col h2 { margin: 0 0 28px; font-family: var(--font-display); font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+.signin-col label { display: flex; flex-direction: column; gap: 8px; margin: 0 0 18px; font-size: 14px; font-weight: 600; }
+.signin-col input { height: 46px; min-height: 0; padding: 0 14px; font-size: 16px; border: 1px solid #c8cfdb; border-radius: var(--r-sm); background: var(--surface); transition: border-color .15s, box-shadow .15s; }
+.signin-col input:hover { border-color: var(--faint); }
+.signin-col input:focus { outline: none; border-color: var(--action); box-shadow: 0 0 0 3px rgb(37 88 255 / .2); }
+.signin-col input[aria-invalid="true"] { border-color: var(--bad); }
+.pw { position: relative; display: block; }
+.pw input { padding-right: 68px; }
+.pw button { position: absolute; top: 6px; right: 6px; height: 34px; padding: 0 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--action); cursor: pointer; transition: background .15s; }
+.pw button:hover { background: var(--pay-bg); }
+.signin-error { min-height: 20px; margin: -6px 0 12px; font-size: 13px; color: var(--bad); }
+.signin-error:not(:empty) { animation: shake .3s ease-out; }
+.signin-submit { width: 100%; height: 48px; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: var(--action); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px -4px rgb(37 88 255 / .55); transition: background .15s, transform .15s, box-shadow .15s; }
+.signin-submit:hover:not(:disabled) { background: var(--action-dark); transform: translateY(-1px); box-shadow: 0 8px 18px -6px rgb(37 88 255 / .6); }
+.signin-submit:active:not(:disabled) { transform: none; }
+.signin-submit:disabled { cursor: progress; }
+.spinner.light { border-color: rgb(255 255 255 / .35); border-top-color: #fff; }
+
+.signin-col h3 { margin: 44px 0 12px; font-family: var(--font-ui); font-size: 14px; font-weight: 600; letter-spacing: 0; color: #0f172a; }
+.signin-demo { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+.signin-demo button { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 0; background: none; font: inherit; text-align: left; color: var(--muted); font-size: 13px; cursor: pointer; transition: background .15s; }
+.signin-demo button + button { border-top: 1px solid var(--line); }
+.signin-demo button:hover:not(:disabled) { background: var(--pay-bg); }
+.signin-demo button:disabled { cursor: progress; }
+.signin-demo b { display: block; font-size: 14px; color: #0f172a; text-transform: capitalize; }
+.signin-go { font-weight: 600; color: var(--action); transition: transform .15s; }
+.signin-demo button:hover:not(:disabled) .signin-go { transform: translateX(3px); }
+.signin-note { margin: 20px 0 0; font-size: 13px; color: var(--muted); }
+
+/* Load sequence: copy rises, the bill slides up, each check ticks, then the stamp lands */
+.signin-book h1, .signin-intro { animation: rise .5s ease-out both; }
+.signin-intro { animation-delay: .08s; }
+.bill { animation: bill-in .7s cubic-bezier(.2, .8, .2, 1) .2s both; }
+.bill-checks li { animation: tick .3s ease-out both; animation-delay: calc(.9s + var(--i) * .3s); }
+.bill-checks li::before { animation: pop .3s cubic-bezier(.2, 1.6, .4, 1) both; animation-delay: inherit; }
+.bill-stamp { animation: stamp .35s cubic-bezier(.2, 1.4, .4, 1) 2.5s both; }
+.signin-col { animation: rise .5s ease-out .1s both; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes bill-in { from { opacity: 0; transform: translateY(48px) rotate(-3deg); } }
+@keyframes tick { from { opacity: .3; } }
+@keyframes pop { from { transform: scale(0); } }
+@keyframes stamp { from { opacity: 0; transform: rotate(-9deg) scale(1.8); } }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .signin *, .signin *::before { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 960px) {
+  .signin { grid-template-columns: 1fr; }
+  .signin-book { padding-bottom: 48px; }
+  .signin-book h1 { margin-top: 0; padding-top: 48px; }
+  .signin-form { padding: 40px 24px 56px; }
+}
+@media (max-width: 560px) {
+  .signin-book { padding: 24px 20px 40px; }
+  .signin-intro { margin-bottom: 32px; }
+  .bill-sheet { padding: 24px 18px 20px; }
+  .bill-checks { padding-right: 0; }
+  .bill-stamp { position: static; display: inline-block; margin-top: 16px; font-size: 18px; }
+  .signin-form { padding: 32px 20px 48px; }
+}
