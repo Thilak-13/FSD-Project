@@ -3,20 +3,18 @@
 .skip-link:focus { top: 1rem; text-decoration: none; }
 main:focus { outline: none; }
 
-/* Clip-path hides outlines on the route arrows, so draw focus inside the shape. */
+/* Stages sit edge to edge in a clipped strip, so draw focus inside the cell. */
 .stage:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--action); filter: none; }
-/* The default focus colour is too dark on the navy sidebar. */
-aside :focus-visible { outline-color: #9db4ff; }
 .task:focus-visible { outline-offset: 0; border-color: var(--action); }
 
 /* Inline form validation */
 input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--bad); }
-.field-error { color: var(--bad); font-weight: 600; font-size: .82rem; }
+.field-error { color: var(--bad); font-weight: 500; font-size: .82rem; }
 .field-error::before { content: '! '; }
 
-.all-clear { display: flex; gap: .9rem; align-items: center; padding: 1.25rem; border-radius: var(--r-sm); background: var(--ok-bg); color: var(--ok); }
-.all-clear b { display: block; color: var(--ink); }
-.all-clear .mark { width: 36px; height: 36px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; font-weight: 800; flex: none; }
+.all-clear { display: flex; gap: .75rem; align-items: center; padding: 1rem 0; color: var(--muted); }
+.all-clear b { display: block; color: var(--ink); font-weight: 500; }
+.all-clear .mark { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); color: var(--ok); display: grid; place-items: center; font-weight: 600; flex: none; }
 .result-count { color: var(--muted); font-size: .85rem; margin: 0 0 .5rem; }
 
 /* Off-screen mobile menu must not be reachable with Tab. */

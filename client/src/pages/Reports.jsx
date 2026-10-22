@@ -10,7 +10,7 @@ import useTitle from '../useTitle';
 
 const fmtK = (v) => (v >= 100000 ? `${v / 100000}L` : `${v / 1000}k`);
 const days = (n) => (n == null ? '—' : `${n.toFixed(1)} days`);
-const AGING_COLORS = { 'Not yet due': '#8a94a6', '0-30': '#d9a13b', '31-60': '#d97a2b', '61-90': '#c4501f', '90+': '#a3271d' };
+const AGING_COLORS = { 'Not yet due': '#b9bcc6', '0-30': '#d9a13b', '31-60': '#d97a2b', '61-90': '#c4501f', '90+': '#a3271d' };
 const ORDER = ['verification_failed', 'rejected', 'pending_approval', 'approved', 'partially_paid', 'paid'];
 const monthName = (ym) => new Date(`${ym}-01`).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
 
@@ -90,9 +90,9 @@ export default function Reports() {
               <h2>How late is what we owe?</h2>
               <p className="muted small">Unpaid amounts grouped by days past due date.</p>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={s.aging}><CartesianGrid vertical={false} stroke="#e3e7ee" /><XAxis dataKey="bucket" tickLine={false} /><YAxis tickFormatter={fmtK} tickLine={false} axisLine={false} />
+                <BarChart data={s.aging}><CartesianGrid vertical={false} stroke="#ececef" /><XAxis dataKey="bucket" tickLine={false} /><YAxis tickFormatter={fmtK} tickLine={false} axisLine={false} />
                   <Tooltip formatter={(v) => money(v)} cursor={{ fill: '#f1f3f7' }} />
-                  <Bar dataKey="amount" name="Owed" radius={[4, 4, 0, 0]}>{s.aging.map((a) => <Cell key={a.bucket} fill={AGING_COLORS[a.bucket]} />)}</Bar>
+                  <Bar dataKey="amount" name="Owed" radius={[3, 3, 0, 0]} maxBarSize={56} isAnimationActive={false}>{s.aging.map((a) => <Cell key={a.bucket} fill={AGING_COLORS[a.bucket]} />)}</Bar>
                 </BarChart>
               </ResponsiveContainer>
             </section>
@@ -100,8 +100,8 @@ export default function Reports() {
               <h2>Payments each month</h2>
               <p className="muted small">Total paid to vendors per month.</p>
               <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={s.monthly.map((m) => ({ ...m, month: monthName(m._id) }))}><CartesianGrid vertical={false} stroke="#e3e7ee" /><XAxis dataKey="month" tickLine={false} /><YAxis tickFormatter={fmtK} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(v) => money(v)} /><Line dataKey="paid" name="Paid" stroke="#2453d6" strokeWidth={2.5} dot={{ r: 4 }} /></LineChart>
+                <LineChart data={s.monthly.map((m) => ({ ...m, month: monthName(m._id) }))}><CartesianGrid vertical={false} stroke="#ececef" /><XAxis dataKey="month" tickLine={false} /><YAxis tickFormatter={fmtK} tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(v) => money(v)} /><Line dataKey="paid" name="Paid" stroke="#3341b5" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} /></LineChart>
               </ResponsiveContainer>
             </section>
             <section className="panel">

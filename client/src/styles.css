@@ -1,30 +1,30 @@
 :root {
-  /* Surfaces */
-  --ink: #0b1223;        /* deep navy: sidebar, hero, headings */
-  --ink-2: #1a2540;
-  --paper: #f4f7fb;      /* cool ice-slate canvas */
+  /* Surfaces: quiet neutrals, hairlines instead of shadows */
+  --ink: #1b1e26;        /* text, primary buttons */
+  --ink-2: #3a3f4b;
+  --paper: #f6f6f7;      /* app canvas */
   --surface: #ffffff;
-  --elevated: #f8fafc;   /* table headers, nested wells */
-  --line: #e2e8f0;
-  --muted: #475569;
-  --faint: #94a3b8;
-  /* Brand */
-  --action: #2558ff;     /* electric blue: primary actions, active states */
-  --action-dark: #1d4ed8;
-  /* Semantic statuses: dark text on pastel */
-  --ok: #15803d;   --ok-bg: #dcfce7;
-  --wait: #b45309; --wait-bg: #fef3c7;
-  --bad: #be123c;  --bad-bg: #ffe4e6;
-  --pay: #2558ff;  --pay-bg: #eef4ff;
-  --neutral-bg: #f1f5f9;
-  --shadow-card: 0 4px 20px -2px rgb(15 23 42 / .05), 0 1px 3px 0 rgb(15 23 42 / .03);
-  --shadow-float: 0 12px 32px -4px rgb(37 88 255 / .14);
-  --r-sm: 8px; --r: 12px;
-  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
+  --elevated: #fafafb;   /* hover rows, wells */
+  --line: #e6e6ea;
+  --muted: #5d6370;
+  --faint: #9a9eaa;
+  /* Brand: one deep indigo for links, focus and the current place */
+  --action: #3341b5;
+  --action-dark: #26318c;
+  /* Statuses: text colour plus a dot; backgrounds stay neutral */
+  --ok: #18794e;   --ok-bg: #eef7f2;
+  --wait: #a35c00; --wait-bg: #fbf4e8;
+  --bad: #c22b2b;  --bad-bg: #fcefef;
+  --pay: #3341b5;  --pay-bg: #f0f1fb;
+  --neutral-bg: #f1f1f3;
+  --shadow-card: none;
+  --shadow-float: 0 8px 24px -8px rgb(27 30 38 / .18);
+  --r-sm: 6px; --r: 10px;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: var(--font-ui);
   font-family: var(--font-ui);
-  font-size: 15px; line-height: 1.5; color: #0f172a;
+  font-size: 14.5px; line-height: 1.5; color: var(--ink);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }

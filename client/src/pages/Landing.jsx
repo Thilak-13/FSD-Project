@@ -146,11 +146,6 @@ export default function Landing() {
               <a href="#try" className="lp-btn primary">Try the live demo</a>
               <a href="#how" className="lp-btn light">See how it works</a>
             </div>
-            <dl className="lp-facts">
-              <div><dt>5</dt><dd>checks on every invoice, before anyone approves it</dd></div>
-              <div><dt>2%</dt><dd>tolerance against the purchase order, then it is flagged</dd></div>
-              <div><dt>3 days</dt><dd>before the due date, finance gets a reminder</dd></div>
-            </dl>
           </div>
           <HeroDemo />
         </section>

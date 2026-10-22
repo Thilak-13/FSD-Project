@@ -166,7 +166,6 @@ export default function InvoiceDetail() {
       <p className="print-only voucher-head">Payment voucher, printed {date(new Date())}</p>
       <div className="page-header">
         <div>
-          <span className="tag">Invoice verification</span>
           <h1><span className="mono">{inv.invoiceNumber}</span> <StatusBadge invoice={inv} /></h1>
           <p className="lede">{money(inv.amount)} from {inv.vendor?.name}. <span className={isOverdue(inv) ? 'late' : ''}>{dueText(inv)}.</span></p>
         </div>
@@ -182,7 +181,6 @@ export default function InvoiceDetail() {
 
         <div className="verify-side">
           <section className="panel">
-            <span className="tag">Invoice details</span>
             <h2>What the vendor billed</h2>
             <dl className="meta-grid">
               <div><dt>Invoice number</dt><dd className="mono">{inv.invoiceNumber}</dd></div>
@@ -206,7 +204,6 @@ export default function InvoiceDetail() {
           </section>
 
           <section className="panel">
-            <span className="tag">Rule engine</span>
             <h2>{flagged ? `${flagged} of ${inv.checks.length} checks flagged` : `All ${inv.checks.length} checks passed`}</h2>
             <p className="muted small">Run automatically when the invoice was entered.</p>
             <ul className="rule-list">
@@ -221,7 +218,6 @@ export default function InvoiceDetail() {
           </section>
 
           <section className="panel">
-            <span className="tag">Payment</span>
             <h2>{balance > 0 && !['verification_failed', 'rejected'].includes(inv.status) ? 'Still to pay' : inv.status === 'paid' ? 'Paid in full' : 'Not payable yet'}</h2>
             <div className="sum-well">
               <div><span>Invoice amount</span><span>{money(inv.amount)}</span></div>
@@ -239,7 +235,6 @@ export default function InvoiceDetail() {
           </section>
 
           <section className="panel">
-            <span className="tag">Audit trail</span>
             <h2>Activity</h2>
             <ol className="activity">
               {[...inv.history].reverse().map((h, i) => (

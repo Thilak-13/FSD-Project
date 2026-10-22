@@ -19,25 +19,6 @@ const TABS = [
   { key: 'overdue', label: 'Overdue' },
 ];
 
-// Entered → Approved → Paid, as a compact stepper for the table.
-function MiniStepper({ status }) {
-  const failed = ['verification_failed', 'rejected'].includes(status);
-  const steps = [
-    { label: 'Entered', state: status === 'verification_failed' ? 'fail' : 'done' },
-    { label: 'Approved', state: status === 'rejected' ? 'fail' : status === 'pending_approval' ? 'now' : ['approved', 'partially_paid', 'paid'].includes(status) ? 'done' : '' },
-    { label: 'Paid', state: status === 'paid' ? 'done' : ['approved', 'partially_paid'].includes(status) ? 'now' : '' },
-  ];
-  return (
-    <span className="mstep" aria-hidden="true">
-      {steps.map((s, i) => (
-        <span key={s.label} className={failed && !s.state ? '' : s.state}>
-          {i > 0 && <span className="arrow">→ </span>}<i /> {s.label}
-        </span>
-      ))}
-    </span>
-  );
-}
-
 export default function Invoices() {
   const { can } = useAuth();
   const toast = useToast();
@@ -122,7 +103,7 @@ export default function Invoices() {
                   <input type="checkbox" checked={allPicked} onChange={toggleAll} disabled={!approvable.length} aria-label="Select all invoices waiting for approval" />
                 </th>
               )}
-              <th>Invoice</th><th>Vendor</th><th className="num">Amount</th><th className="num c-bal">Still to pay</th><th>Due</th><th>Progress</th><th>Status</th>
+              <th>Invoice</th><th>Vendor</th><th className="num">Amount</th><th className="num c-bal">Still to pay</th><th>Due</th><th>Status</th>
               <th><span className="sr-only">Action</span></th>
             </tr>
           </thead>
@@ -131,7 +112,7 @@ export default function Invoices() {
               <tr key={n} className="skel-row" aria-hidden="true">
                 {canBatch && <td className="check" />}
                 <td><span className="skel w80" /></td><td><span className="skel w80" /></td><td><span className="skel w60" /></td><td><span className="skel w60" /></td>
-                <td><span className="skel w60" /></td><td><span className="skel w80" /></td><td><span className="skel w60" /></td><td />
+                <td><span className="skel w60" /></td><td><span className="skel w60" /></td><td />
               </tr>
             ))}
             {list.map((i) => {
@@ -145,21 +126,20 @@ export default function Invoices() {
                       )}
                     </td>
                   )}
-                  <td className="c-inv"><Link to={`/invoices/${i._id}`} onClick={(e) => e.stopPropagation()} className="mono"><b>{i.invoiceNumber}</b></Link></td>
+                  <td className="c-inv"><Link to={`/invoices/${i._id}`} onClick={(e) => e.stopPropagation()} className="inv-no">{i.invoiceNumber}</Link></td>
                   <td className="c-vendor">
                     <span className="cell-vendor">{i.vendor?.name}{i.vendor?.gstin && <small>GSTIN {i.vendor.gstin}</small>}</span>
                   </td>
                   <td className="num c-amt">{money(i.amount)}</td>
                   <td className="num c-bal">{['paid', 'rejected', 'verification_failed'].includes(i.status) ? '—' : money(balanceOf(i))}</td>
                   <td className={`c-due ${isOverdue(i) ? 'late' : ''}`}>{dueText(i)}</td>
-                  <td className="c-flow"><MiniStepper status={i.status} /></td>
                   <td className="c-status"><StatusBadge invoice={i} /></td>
                   <td className="c-act num" onClick={(e) => e.stopPropagation()}>
                     {can('manager') && i.status === 'pending_approval' && (
                       <button className="btn primary xs" disabled={busy} onClick={() => approve([i])} aria-label={`Approve ${i.invoiceNumber}`}>Approve</button>
                     )}
                     {can('finance') && ['approved', 'partially_paid'].includes(i.status) && (
-                      <Link className="btn primary xs" to={`/invoices/${i._id}`} aria-label={`Pay ${i.invoiceNumber}`}>Pay →</Link>
+                      <Link className="btn primary xs" to={`/invoices/${i._id}`} aria-label={`Pay ${i.invoiceNumber}`}>Pay</Link>
                     )}
                     {can('finance') && ['verification_failed', 'rejected'].includes(i.status) && (
                       <Link className="btn xs" to={`/invoices/${i._id}/edit`} aria-label={`Fix ${i.invoiceNumber}`}>Fix</Link>
