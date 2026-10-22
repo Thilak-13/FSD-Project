@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, DEMO_USERS, DEMO_PASSWORD } from '../auth';
 import { errMsg } from '../api';
@@ -91,6 +92,29 @@ const COMPARE = [
   ['"Has this been paid?" means scrolling through bank statements', 'Every payment, part or full, is recorded against its invoice'],
   ['Month-end means building the overdue list by hand', 'Reports show what is owed, to whom, and how late, at any time'],
 ];
+
+const EASE = [0.2, 0.8, 0.2, 1];
+
+function FaqItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div className="lp-faq-item">
+      <button type="button" className="lp-faq-q" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        {q}
+        <motion.span className="lp-faq-icon" aria-hidden="true" animate={{ rotate: open ? 45 : 0 }} transition={{ duration: 0.2, ease: EASE }}>+</motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div id={id} className="lp-faq-a" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: EASE }}>
+            <p>{a}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 const FAQ = [
   ['What does InvoiceFlow check automatically?',
@@ -255,14 +279,11 @@ export default function Landing() {
 
         <section className="lp-section" id="faq" aria-labelledby="faq-h">
           <div className="lp-head"><h2 id="faq-h">Questions</h2></div>
-          <div className="lp-faq">
-            {FAQ.map(([q, a]) => (
-              <details key={q}>
-                <summary>{q}</summary>
-                <p>{a}</p>
-              </details>
-            ))}
-          </div>
+          <MotionConfig reducedMotion="user">
+            <div className="lp-faq">
+              {FAQ.map(([q, a]) => <FaqItem key={q} q={q} a={a} />)}
+            </div>
+          </MotionConfig>
         </section>
 
         <section className="lp-end">

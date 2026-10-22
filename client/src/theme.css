@@ -243,3 +243,11 @@ tr.selected { background: var(--pay-bg) !important; }
 .inv-table td.c-vendor { min-width: 170px; }
 /* Below 1500px the balance column gives way so the action column stays in view (balance is on the invoice page). */
 @media (max-width: 1500px) { .inv-table .c-bal { display: none; } }
+
+/* Buttons answer a press with a quick colour change and a slight settle. */
+.btn, .lp-btn, .signin-submit, .signin-demo button, .icon-btn, .tabs button, .pw button, .lp-role {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.btn:active:not(:disabled), .lp-btn:active, .signin-submit:active:not(:disabled), .signin-demo button:active:not(:disabled),
+.icon-btn:active, .lp-role:active:not(:disabled) { transform: scale(.98); }
+.tabs button:active, .link-btn:active, .pw button:active { opacity: .7; }
