@@ -1,0 +1,13 @@
+.vendor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 1.25rem; align-items: start; margin-bottom: 1.25rem; }
+.vendor-grid .panel { margin: 0; }
+.vendor-head { display: flex; justify-content: space-between; align-items: center; }
+.vendor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; margin-top: 1rem; }
+.po-list { list-style: none; padding: 0; margin: .5rem 0 0; display: flex; flex-direction: column; gap: 1rem; }
+.po-list .paybar-head { align-items: center; gap: .5rem; flex-wrap: wrap; }
+.po-list .paybar-track div { background: var(--action); }
+.po-list .paybar-track div.over { background: var(--bad); }
+.table-wrap.flat { border: 0; border-radius: 0; margin: .5rem -1.4rem -1.25rem; }
+
+@media (max-width: 820px) {
+  .vendor-grid, .vendor-fields { grid-template-columns: 1fr; }
+}

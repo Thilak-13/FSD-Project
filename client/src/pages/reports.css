@@ -1,0 +1,13 @@
+/* Reports-only additions; shared styles live in styles.css. */
+.stat-row + .report-grid { margin-bottom: 1.25rem; }
+/* Wide tables scroll inside their panel instead of stretching the page on phones. */
+.report-grid > .panel { min-width: 0; overflow-x: auto; }
+.report-grid table { width: 100%; }
+
+/* Overdue vs not-yet-due split under each vendor name */
+.owed td:first-child b { display: block; }
+.split { display: flex; height: 6px; width: 100%; max-width: 160px; margin-top: .35rem; border-radius: 999px; overflow: hidden; background: var(--neutral-bg); }
+.split-late { background: var(--bad); }
+.split-due { background: #8a94a6; }
+
+@media (max-width: 560px) { .report-grid .hide-sm { display: none; } }
