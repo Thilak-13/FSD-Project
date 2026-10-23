@@ -80,7 +80,7 @@ export default function VendorDetail() {
         {can('finance') && (
           <div className="page-actions">
             <button className="btn" onClick={toggle}>{v.active ? 'Deactivate' : 'Activate'}</button>
-            {v.active && <button className="btn primary" onClick={() => navigate(`/invoices/new?vendor=${v._id}`)}>New invoice for this vendor</button>}
+            {v.active && can('vendor') && <button className="btn primary" onClick={() => navigate(`/invoices/new?vendor=${v._id}`)}>New invoice for this vendor</button>}
           </div>
         )}
       </div>

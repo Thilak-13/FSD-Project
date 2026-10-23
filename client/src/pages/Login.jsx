@@ -34,8 +34,8 @@ export default function Login() {
     <div className="signin" role="main">
       <section className="signin-book">
         <Link to="/" className="signin-logo"><span className="brand-mark" aria-hidden="true" />InvoiceFlow</Link>
-        <h1>Bills in. Payments out. Nobody chasing.</h1>
-        <p className="signin-intro">Every bill is checked against its vendor and purchase order before a manager ever sees it.</p>
+        <h1>Vendor bills, checked before anyone pays them.</h1>
+        <p className="signin-intro">Vendors send bills, finance reviews them and managers approve them. Every bill is checked against its vendor and purchase order first.</p>
 
         <figure className="bill" aria-label="Example: a vendor bill passing every check and getting approved">
           <div className="bill-copy" aria-hidden="true" />

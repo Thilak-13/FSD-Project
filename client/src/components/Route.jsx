@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom';
-import { ROUTE, STATUS, money, balanceOf } from '../format';
+import { ROUTE, STATUS, WITH_VENDOR, money, balanceOf } from '../format';
 
-// "Needs fixing" also holds rejected invoices: both go back to finance.
-const inStage = (i, status) => i.status === status || (status === 'verification_failed' && i.status === 'rejected');
+// "Needs fixing" holds everything that is back with the vendor: failed checks, returned by finance, rejected by a manager.
+const inStage = (i, status) => (status === 'verification_failed' ? WITH_VENDOR.includes(i.status) : i.status === status);
 
 // The payment route: every invoice in the system, grouped by where it is in the flow.
 export default function Route({ invoices }) {
   const stages = ROUTE.map((status) => {
     const list = invoices.filter((i) => inStage(i, status));
-    const amount = list.reduce((s, i) => s + (['paid', 'rejected', 'verification_failed'].includes(i.status) ? i.amount : balanceOf(i)), 0);
+    const amount = list.reduce((s, i) => s + (i.status === 'paid' || WITH_VENDOR.includes(i.status) ? i.amount : balanceOf(i)), 0);
     return { status, count: list.length, amount };
   });
   return (

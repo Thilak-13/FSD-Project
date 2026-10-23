@@ -1,16 +1,19 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'node:path';
-import { Invoice, Vendor, PurchaseOrder } from '../models/index.js';
+import { Invoice, Vendor, PurchaseOrder, User } from '../models/index.js';
 import { requireRole } from '../middleware/auth.js';
 import { verify, lineTotals, GST_RATES } from '../services/verify.js';
 import { notify } from '../services/notify.js';
 import { today, round2 } from '../services/dates.js';
+import { nextInvoiceNumber } from '../services/numbering.js';
 
-export const OPEN = ['pending_approval', 'approved', 'partially_paid'];
-const EDITABLE = ['verification_failed', 'rejected'];
+// Unpaid invoices that are still on their way to being paid (used for overdue and due-soon).
+export const OPEN = ['pending_review', 'pending_approval', 'approved', 'partially_paid'];
+// Back with the vendor: they can correct and resubmit these.
+const EDITABLE = ['verification_failed', 'returned', 'rejected'];
 // Statuses that don't count toward duplicates or PO totals.
-const DEAD = ['verification_failed', 'rejected'];
+export const DEAD = ['verification_failed', 'returned', 'rejected'];
 const cents = (n) => Math.round(n * 100);
 
 const upload = multer({
@@ -23,6 +26,16 @@ const upload = multer({
 const attach = (inv, file) => file && Object.assign(inv, { attachment: file.filename, attachmentName: file.originalname });
 
 const r = Router();
+
+// Vendor users only ever see their own vendor's invoices; everyone else sees all of them.
+const scope = (req) => (req.user.role === 'vendor' ? { vendor: req.user.vendor } : {});
+const visible = (req, inv) => inv && (req.user.role !== 'vendor' || String(inv.vendor?._id ?? inv.vendor) === req.user.vendor);
+// Tell the vendor's own users about their invoice (never a role-wide alert, which every vendor would see).
+async function notifyVendor(inv, type, message) {
+  const users = await User.find({ role: 'vendor', vendor: inv.vendor?._id ?? inv.vendor }).select('_id').lean();
+  if (users.length) await notify(users.map((u) => ({ user: u._id })), { invoice: inv._id, type, message });
+}
+
 const populate = (q) => q.populate('vendor', 'name gstin').populate('purchaseOrder', 'poNumber amount').populate('history.by', 'name role');
 
 async function runVerification(inv, userId) {
@@ -38,8 +51,9 @@ async function runVerification(inv, userId) {
 
   inv.checks = verify(inv, { vendor, duplicateCount, po, poInvoicedTotal: total });
   const ok = inv.checks.every((c) => c.passed);
-  inv.status = ok ? 'pending_approval' : 'verification_failed';
+  inv.status = ok ? 'pending_review' : 'verification_failed';
   inv.submittedAt = new Date();
+  inv.reviewedAt = undefined;
   inv.history.push({ action: ok ? 'verified' : 'verification_failed', by: userId });
   try {
     await inv.save();
@@ -48,7 +62,10 @@ async function runVerification(inv, userId) {
     if (e.code === 11000) throw Object.assign(new Error(`Invoice ${inv.invoiceNumber} already exists for this vendor`), { status: 409 });
     throw e;
   }
-  if (ok) await notify([{ role: 'manager' }], { invoice: inv._id, type: 'approval_needed', message: `Invoice ${inv.invoiceNumber} awaits approval` });
+  if (ok) {
+    const vendor = await Vendor.findById(inv.vendor).select('name').lean();
+    await notify([{ role: 'finance' }], { invoice: inv._id, type: 'review_needed', message: `Invoice ${inv.invoiceNumber} from ${vendor?.name ?? 'a vendor'} is ready for your review` });
+  }
   return inv;
 }
 
@@ -79,20 +96,30 @@ const fields = ({ invoiceNumber, vendor, purchaseOrder, amount, invoiceDate, due
 r.get('/', async (req, res) => {
   const { status, vendor, overdue } = req.query;
   const q = {};
-  if (status) q.status = status;
-  if (vendor) q.vendor = vendor;
+  if (status) q.status = String(status);
+  if (vendor) q.vendor = String(vendor);
+  Object.assign(q, scope(req));
   if (overdue === 'true') Object.assign(q, { status: { $in: OPEN }, dueDate: { $lt: today() } });
   res.json(await populate(Invoice.find(q).sort({ createdAt: -1 })).select('-history -checks'));
 });
 
+// The next free invoice number for a vendor, e.g. GL/26-27/0008. Vendors always get their own.
+r.get('/next-number', async (req, res) => {
+  const vendorId = req.user.role === 'vendor' ? req.user.vendor : String(req.query.vendor || '');
+  const vendor = vendorId && await Vendor.findById(vendorId).select('name').lean().catch(() => null);
+  if (!vendor) return res.status(400).json({ error: 'Choose a vendor first' });
+  const used = await Invoice.find({ vendor: vendor._id }).distinct('invoiceNumber');
+  res.json({ invoiceNumber: nextInvoiceNumber(vendor.name, used) });
+});
+
 r.get('/:id', async (req, res) => {
   const inv = await populate(Invoice.findById(req.params.id));
-  inv ? res.json(inv) : res.status(404).json({ error: 'Not found' });
+  visible(req, inv) ? res.json(inv) : res.status(404).json({ error: 'Not found' });
 });
 
 r.get('/:id/attachment', async (req, res) => {
   const inv = await Invoice.findById(req.params.id);
-  if (!inv?.attachment) return res.status(404).json({ error: 'No attachment' });
+  if (!visible(req, inv) || !inv.attachment) return res.status(404).json({ error: 'No attachment' });
   const ext = path.extname(inv.attachmentName || '');
   // Stored files have no extension, so take the type from the original name.
   res.type(ext || 'application/octet-stream');
@@ -101,21 +128,48 @@ r.get('/:id/attachment', async (req, res) => {
   res.download(file, `${inv.invoiceNumber.replace(/[\\/]/g, '-')}${ext}`);
 });
 
-r.post('/', requireRole('finance'), upload.single('attachment'), async (req, res) => {
-  const inv = new Invoice({ ...fields(req.body), history: [{ action: 'submitted', by: req.user.id }] });
+// Vendors send their own bills; the vendor is always theirs, whatever the form says. Admin can enter one for any vendor.
+r.post('/', requireRole('vendor'), upload.single('attachment'), async (req, res) => {
+  const inv = new Invoice({ ...fields(req.body), ...scope(req), history: [{ action: 'submitted', by: req.user.id }] });
   attach(inv, req.file);
   await inv.validate();
   res.status(201).json(await runVerification(inv, req.user.id));
 });
 
-r.put('/:id', requireRole('finance'), upload.single('attachment'), async (req, res) => {
+r.put('/:id', requireRole('vendor'), upload.single('attachment'), async (req, res) => {
   const inv = await Invoice.findById(req.params.id);
-  if (!inv) return res.status(404).json({ error: 'Not found' });
+  if (!visible(req, inv)) return res.status(404).json({ error: 'Not found' });
   if (!EDITABLE.includes(inv.status)) return res.status(409).json({ error: `Cannot edit an invoice that is ${inv.status}` });
-  inv.set(fields(req.body));
+  inv.set({ ...fields(req.body), ...scope(req) });
   attach(inv, req.file);
   inv.history.push({ action: 'resubmitted', by: req.user.id });
   res.json(await runVerification(inv, req.user.id));
+});
+
+// Finance looks over a checked invoice before it reaches a manager.
+r.post('/:id/forward', requireRole('finance'), async (req, res) => {
+  const inv = await Invoice.findById(req.params.id);
+  if (!inv) return res.status(404).json({ error: 'Not found' });
+  if (inv.status !== 'pending_review') return res.status(409).json({ error: `Invoice is ${inv.status}` });
+  const note = String(req.body.note ?? '').trim();
+  Object.assign(inv, { status: 'pending_approval', reviewedAt: new Date() });
+  inv.history.push({ action: 'forwarded', by: req.user.id, note });
+  await inv.save();
+  await notify([{ role: 'manager' }], { invoice: inv._id, type: 'approval_needed', message: `Invoice ${inv.invoiceNumber} was reviewed by finance and awaits your approval` });
+  res.json(inv);
+});
+
+r.post('/:id/return', requireRole('finance'), async (req, res) => {
+  const note = String(req.body.note ?? '').trim();
+  if (!note) return res.status(400).json({ error: 'Tell the vendor what to change' });
+  const inv = await Invoice.findById(req.params.id);
+  if (!inv) return res.status(404).json({ error: 'Not found' });
+  if (inv.status !== 'pending_review') return res.status(409).json({ error: `Invoice is ${inv.status}` });
+  inv.status = 'returned';
+  inv.history.push({ action: 'returned', by: req.user.id, note });
+  await inv.save();
+  await notifyVendor(inv, 'returned', `Finance returned invoice ${inv.invoiceNumber}: ${note}`);
+  res.json(inv);
 });
 
 const decide = (decision) => async (req, res) => {
@@ -131,7 +185,9 @@ const decide = (decision) => async (req, res) => {
   if (decision === 'approve') inv.approvedAt = new Date();
   inv.history.push({ action: inv.status, by: req.user.id, note });
   await inv.save();
-  await notify([{ role: 'finance' }], { invoice: inv._id, type: inv.status, message: `Invoice ${inv.invoiceNumber} was ${inv.status}${note ? `: ${note}` : ''}` });
+  const message = `Invoice ${inv.invoiceNumber} was ${inv.status}${note ? `: ${note}` : ''}`;
+  await notify([{ role: 'finance' }], { invoice: inv._id, type: inv.status, message });
+  await notifyVendor(inv, inv.status, message);
   res.json(inv);
 };
 r.post('/:id/approve', requireRole('manager'), decide('approve'));
@@ -154,6 +210,7 @@ r.post('/:id/payments', requireRole('finance'), async (req, res) => {
   if (full) inv.paidAt = paidOn;
   inv.history.push({ action: `payment ${amount}`, by: req.user.id, note: req.body.reference });
   await inv.save();
+  await notifyVendor(inv, 'paid', `${full ? 'Full payment' : 'Part-payment'} of ₹${amount.toLocaleString('en-IN')} recorded for invoice ${inv.invoiceNumber}`);
   res.json(inv);
 });
 

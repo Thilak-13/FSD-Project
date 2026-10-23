@@ -24,7 +24,7 @@ r.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   fails.delete(key);
-  const profile = { id: user._id, name: user.name, role: user.role };
+  const profile = { id: user._id, name: user.name, role: user.role, ...(user.vendor && { vendor: user.vendor }) };
   res.json({ token: jwt.sign(profile, process.env.JWT_SECRET, { expiresIn: '8h' }), user: profile });
 });
 

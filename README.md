@@ -1,6 +1,6 @@
-# InvoiceFlow: Invoice Verification & Vendor Payment Platform (MERN)
+# InvoiceFlow
 
-Gets every vendor invoice from entry to paid. It checks invoices automatically, sends clean ones to a manager for approval, tracks payments, reminds people before anything goes overdue, and reports on what is owed.
+Vendors send their bills here. Each bill is checked automatically, reviewed by finance, approved by a manager and paid, and everyone involved can see where it is. Reminders go out before anything is overdue, and reports show what is owed.
 
 **Presenting?** Follow the step-by-step script in [DEMO.md](DEMO.md).
 
@@ -14,7 +14,7 @@ Needs Node 18+ and a MongoDB Atlas cluster.
    cd server
    cp .env.example .env      # set MONGO_URI (Atlas connection string) and JWT_SECRET
    npm install
-   npm run seed              # demo data (resets the database)
+   npm run seed              # demo data (erases the database first)
    npm run dev               # API on http://localhost:5050
    ```
 3. Start the UI:
@@ -24,29 +24,27 @@ Needs Node 18+ and a MongoDB Atlas cluster.
    npm run dev               # opens on :5173, or the next free port; proxies /api to :5050
    ```
 
-On the login page, click a role to sign in. Or use `admin@demo.com`, `finance@demo.com` or `manager@demo.com` with the password `password123`.
+On the sign-in page, click a role to sign in, or use `vendor@demo.com`, `finance@demo.com`, `manager@demo.com` or `admin@demo.com` with the password `password123`.
 
-Tests: `cd server && npm test` runs 19 tests (the verification rules, plus API integration tests against a throwaway in-memory MongoDB; Atlas is never touched). The full project report is in [docs/PROJECT_REPORT.md](docs/PROJECT_REPORT.md).
+Tests: `cd server && npm test` runs 29 tests: the verification rules and invoice numbering, plus API tests against a throwaway in-memory MongoDB (Atlas is never touched). The full project report is in [docs/PROJECT_REPORT.md](docs/PROJECT_REPORT.md).
 
-## How it works
+## How a bill moves
 
 | Step | Who | What happens |
 |---|---|---|
-| Submit | Finance | The invoice is checked automatically: the vendor is active, the invoice number is unique for that vendor, the amount is above 0, and the due date is on or after the invoice date. If a PO is linked, the PO must be open, belong to the same vendor, and the total invoiced must stay within the PO amount + 2%. Pass → *Waiting for approval* and managers get an alert. Fail → *Needs fixing* with the reason, ready to correct and resubmit. |
-| Approve / reject | Manager | Rejecting needs a reason. Finance gets an alert either way. |
-| Pay | Finance | Partial or full payments. The balance is prefilled and overpaying is blocked. → *Partly paid* / *Paid*. |
-| Reminders | Daily at 09:00, or the admin's **Run reminder check now** | Due within 3 days → Finance. Overdue → Finance and Admin. Waiting for approval more than 2 days → Managers. Never repeated for the same invoice on the same day. |
-| Reports | Finance, Manager | Paid vs still owed, how overdue the unpaid amounts are, payments per month, invoices by stage, top vendors, average time to approve and to pay, CSV export. |
+| Send | Vendor | The vendor enters the bill (line items with GST, the purchase order it is for, the PDF). **Generate** fills in the next invoice number, such as `GL/26-27/0008`. |
+| Check | Automatic | The vendor is active, the invoice number is new for that vendor, the amount is above 0, the due date is on or after the invoice date, and, if a purchase order is linked, the total billed against it stays within the order amount + 0.5%. A failure goes straight back to the vendor with what to change. |
+| Review | Finance | Finance sends the bill to a manager, or returns it to the vendor with a note. |
+| Approve | Manager | Approve, or reject with a reason. A rejected bill goes back to the vendor. |
+| Pay | Finance | Partial or full payments; overpaying is blocked. The vendor is told each time. |
+| Reminders | Daily at 09:00, or **Run reminder check now** on the Users page | Waiting more than 2 days for review → Finance. Due within 3 days → Finance. Overdue → Finance and Managers. Waiting more than 2 days for approval → Managers. Never repeated for the same invoice on the same day. |
+| Reports | Finance, Manager | Paid vs still owed, how late the unpaid amounts are, payments per month, invoices by stage, top vendors, average time to approve and to pay, CSV export. |
 
-Admin can do everything and also manages users. Roles are enforced on the server; the browser only hides buttons.
+**Admin** adds, changes and removes the vendor, finance and manager accounts, and has no access to invoices, payments or reports. Roles are enforced on the server; the browser only hides what a role can't use.
 
-## What the UI gives you
+## Purchase orders
 
-- **Payment route:** the Home page shows every invoice grouped by stage (Needs fixing → Waiting for approval → Ready to pay → Partly paid → Paid), with counts and amounts. Click a stage to see its invoices.
-- **To-do list for each role:** managers see what to approve; finance sees what to pay (most urgent first) and what to fix.
-- **Invoice page:** a progress tracker (Submitted → Checked → Approved → Paid), a **Next step** panel that says whose turn it is and holds the action (approve or reject, the payment form, fix and resubmit), the check results, a payment progress bar and an activity history.
-- **Alerts bell** for approvals, rejections and reminders, plus confirmation messages after every action.
-- **View as** switcher in the sidebar and one-click demo logins, for moving between roles during a demo.
+Finance raises an order before a vendor bills: what is being bought, why, who asked for it and when it is needed. Each order's page shows how much has been billed against it, how much is left, and every bill sent against it. Vendors see only the orders placed with them.
 
 ## Architecture
 
@@ -56,18 +54,18 @@ Admin can do everything and also manages users. Roles are enforced on the server
         ▼
  Express API :5050 ── JWT auth + requireRole per route
    │   ├─ routes/        auth, users, vendors, purchase orders, invoices, reports, notifications
-   │   ├─ services/      verify.js (rules, pure function), notify.js
+   │   ├─ services/      verify.js (rules, shared with the browser), numbering.js, notify.js
    │   └─ jobs/          reminders.js  ◄── node-cron, daily 09:00
         │  Mongoose
         ▼
  MongoDB Atlas  (users, vendors, purchaseorders, invoices, notifications)
 ```
 
-Uploaded invoice files are stored in `server/uploads/` and can only be downloaded by signed-in users.
+Uploaded bills are stored in `server/uploads/` and can only be opened by signed-in users who are allowed to see that invoice.
 
 ## Layout
 
 ```
-server/  index.js · models/index.js · routes/ · services/ · jobs/reminders.js · seed.js · verify.test.js
+server/  index.js · app.js · models/index.js · routes/ · services/ · jobs/reminders.js · seed.js · verify.test.js · test/
 client/  src/main.jsx · api.js · auth.jsx · format.js · components/ · pages/
 ```

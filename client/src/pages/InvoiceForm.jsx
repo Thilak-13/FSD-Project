@@ -3,10 +3,11 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import api, { useLoad, errMsg } from '../api';
 import { useToast } from '../components/Toast';
 import PageHeader from '../components/PageHeader';
-import { CHECK_TITLES } from './InvoiceDetail';
+import { CHECK_TITLES, FIX_TIPS } from './InvoiceDetail';
 import { money } from '../format';
 import useTitle from '../useTitle';
-import { verify, lineTotals, GST_RATES, PO_TOLERANCE } from '../../../server/services/verify.js';
+import { useAuth } from '../auth';
+import { verify, lineTotals, GST_RATES, poLimit, PO_TOLERANCE_TEXT } from '../../../server/services/verify.js';
 
 const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 const localDay = (n) => `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
@@ -22,6 +23,7 @@ export default function InvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { isVendor } = useAuth();
   const [vendors] = useLoad('/vendors');
   const [form, setForm] = useState(BLANK);
   const [lines, setLines] = useState(() => [newLine()]);
@@ -59,6 +61,13 @@ export default function InvoiceForm() {
 
   const edit = (patch) => { setForm((f) => ({ ...f, ...patch })); setDirty(true); };
   const set = (k) => (e) => edit({ [k]: e.target.value });
+  const [numbering, setNumbering] = useState(false);
+  const generateNumber = async () => {
+    setNumbering(true);
+    try { const { data } = await api.get(`/invoices/next-number?vendor=${form.vendor}`); edit({ invoiceNumber: data.invoiceNumber }); }
+    catch (e) { toast(errMsg(e), 'bad'); }
+    setNumbering(false);
+  };
   const setLine = (key, k) => (e) => { setLines((ls) => ls.map((l) => (l.key === key ? { ...l, [k]: e.target.value } : l))); setDirty(true); };
 
   // Preselect the vendor when opened from a vendor's page (/invoices/new?vendor=<id>).
@@ -66,9 +75,9 @@ export default function InvoiceForm() {
   const preset = params.get('vendor');
   const dueFromTerms = (v, invoiceDate) => (v && invoiceDate ? day(new Date(+new Date(invoiceDate) + v.paymentTermsDays * 86400000)) : '');
   useEffect(() => {
-    const v = !id && preset && vendors?.find((x) => x._id === preset);
+    const v = !id && (isVendor ? vendors?.[0] : preset && vendors?.find((x) => x._id === preset));
     if (v) setForm((f) => (f.vendor ? f : { ...f, vendor: v._id, dueDate: dueFromTerms(v, f.invoiceDate) }));
-  }, [id, preset, vendors]);
+  }, [id, preset, vendors, isVendor]);
   const pickVendor = (e) => {
     const v = vendors.find((x) => x._id === e.target.value);
     edit({ vendor: e.target.value, purchaseOrder: '', dueDate: dueFromTerms(v, form.invoiceDate) || form.dueDate });
@@ -91,7 +100,7 @@ export default function InvoiceForm() {
     };
     return { checks: checks.map((c) => ({ ...c, waiting: waiting[c.rule] })), duplicateCount, poInvoicedTotal };
   }, [vendorInvoices, id, form, amount, vendor, po, lines]);
-  const poLeft = po && po.amount * (1 + PO_TOLERANCE) - live.poInvoicedTotal;
+  const poLeft = po && poLimit(po.amount) - live.poInvoicedTotal;
 
   // Caught here so people see a plain message before the server checks run.
   const badLine = lines.some((l) => !l.description.trim() || !(Number(l.quantity) > 0) || l.rate === '' || Number(l.rate) < 0);
@@ -123,7 +132,7 @@ export default function InvoiceForm() {
       const { data } = await (id ? api.put(`/invoices/${id}`, body) : api.post('/invoices', body));
       const failed = data.checks.filter((c) => !c.passed).length;
       const verb = id ? 'Resubmitted' : 'Submitted';
-      toast(failed ? `${verb} ${data.invoiceNumber}, but ${failed} check${failed === 1 ? '' : 's'} failed.${another ? ' Open it from Invoices to fix it.' : ' See what to fix below.'}` : `${verb} ${data.invoiceNumber}. All checks passed and managers have been asked to approve it.`, failed ? 'bad' : 'ok');
+      toast(failed ? `${verb} ${data.invoiceNumber}, but ${failed} check${failed === 1 ? '' : 's'} failed.${another ? ' Open it from Invoices to fix it.' : ' See what to fix below.'}` : `${verb} ${data.invoiceNumber}. All checks passed and finance has been asked to review it.`, failed ? 'bad' : 'ok');
       setDirty(false);
       if (!another) return navigate(`/invoices/${data._id}`);
       // Keep the vendor and dates for the next bill from the same vendor.
@@ -137,12 +146,18 @@ export default function InvoiceForm() {
     <>
       <Link to={id ? `/invoices/${id}` : '/invoices'} className="back">{id ? 'Back to invoice' : 'All invoices'}</Link>
       <PageHeader title={id ? 'Fix and resubmit invoice' : 'New invoice'}>
-        {id ? 'Correct the details below. All checks run again when you resubmit.' : 'Enter the details from the vendor\'s bill. The checks on the right update as you type.'}
+        {id ? 'Correct the details below. All checks run again when you resubmit.'
+          : isVendor ? 'Enter your bill. The checks on the right update as you type, so you can fix problems before sending it.'
+          : 'Enter the details from the vendor\'s bill. The checks on the right update as you type.'}
       </PageHeader>
 
       {!loaded ? <div className="loading" role="status">Loading invoice…</div> : (
       <div className="form-layout">
         <form className="panel" onSubmit={submit}>
+          {isVendor ? (
+            <p className="form-vendor"><span>Billing as</span><b>{vendor?.name || 'Loading…'}</b>
+              {vendor && <small>{vendor.gstin ? `GSTIN ${vendor.gstin}. ` : ''}{vendor.paymentTermsDays}-day payment terms.</small>}</p>
+          ) : (
           <label>Vendor
             <select value={form.vendor} onChange={pickVendor} required>
               <option value="">{vendors ? 'Choose a vendor' : 'Loading vendors…'}</option>
@@ -150,18 +165,25 @@ export default function InvoiceForm() {
             </select>
             {vendor && <small className="hint">{vendor.gstin ? `GSTIN ${vendor.gstin}. ` : ''}Payment terms: {vendor.paymentTermsDays} days{vendor.active ? '' : '. This vendor is inactive, so the invoice will fail its checks.'}</small>}
           </label>
+          )}
           <div className="two">
             <label>Invoice number
-              <input id="invoice-number" value={form.invoiceNumber} onChange={set('invoiceNumber')} placeholder="As printed on the bill" required
+              <span className="with-btn">
+              <input id="invoice-number" value={form.invoiceNumber} onChange={set('invoiceNumber')} placeholder={isVendor ? 'Your bill number' : 'As printed on the bill'} required
                 aria-invalid={live.duplicateCount > 0 || undefined} aria-describedby={live.duplicateCount ? 'dup-warning' : undefined} />
+              <button type="button" className="btn" onClick={generateNumber} disabled={!form.vendor || numbering}>{numbering ? 'Wait…' : 'Generate'}</button>
+              </span>
               {live.duplicateCount > 0 && <small className="field-error" id="dup-warning">This vendor already has an invoice with this number.</small>}
             </label>
-            <label>Purchase order
+            <label>Purchase order this bill is for
               <select value={form.purchaseOrder} onChange={set('purchaseOrder')} disabled={!form.vendor}>
-                <option value="">{form.vendor ? 'No purchase order' : 'Choose a vendor first'}</option>
-                {pos?.filter((p) => p.vendor?._id === form.vendor && (p.status === 'open' || p._id === form.purchaseOrder)).map((p) => <option key={p._id} value={p._id}>{p.poNumber}, {money(p.amount)}{p.status === 'open' ? '' : ' (closed)'}</option>)}
+                <option value="">{form.vendor ? 'Not against an order' : 'Choose a vendor first'}</option>
+                {pos?.filter((p) => p.vendor?._id === form.vendor && (p.status === 'open' || p._id === form.purchaseOrder)).map((p) => (
+                  <option key={p._id} value={p._id}>{p.poNumber}{p.description ? `, ${p.description}` : ''} ({money(Math.max(poLimit(p.amount) - p.invoiced, 0))} left){p.status === 'open' ? '' : ', closed'}</option>
+                ))}
               </select>
-              {po && <small className={amount > poLeft ? 'field-error' : 'hint'}>{money(live.poInvoicedTotal)} billed so far. Up to {money(Math.max(poLeft, 0))} left, including the 2% allowance.</small>}
+              {!po && form.vendor && <small className="hint">The order {isVendor ? 'your customer' : 'we'} placed for these goods or services. Picking it lets the checks confirm the bill stays within what was agreed.</small>}
+              {po && <small className={amount > poLeft ? 'field-error' : 'hint'}>{money(live.poInvoicedTotal)} billed so far. Up to {money(Math.max(poLeft, 0))} left, including the {PO_TOLERANCE_TEXT} allowance.</small>}
             </label>
           </div>
           <div className="two">
@@ -217,12 +239,12 @@ export default function InvoiceForm() {
         <div className="form-side">
           <section className="panel">
             <h2>Checks</h2>
-            <p className="muted small">The same checks run when you submit. Passing all of them sends the invoice to a manager to approve.</p>
+            <p className="muted small">The same checks run when you submit. Passing all of them sends the invoice to finance for review, then to a manager to approve.</p>
             <ul className="rule-list" aria-live="polite">
               {live.checks.map((c) => (
                 <li key={c.rule} className={c.waiting ? 'wait' : c.passed ? 'pass' : 'fail'}>
                   <span className="rule-dot" aria-hidden="true" />
-                  <span><b>{CHECK_TITLES[c.rule]}</b>{!c.waiting && !c.passed && <small>{c.message}</small>}</span>
+                  <span><b>{CHECK_TITLES[c.rule]}</b>{!c.waiting && !c.passed && <><small>{c.message}</small><small className="fix-tip">{FIX_TIPS[c.rule]}</small></>}</span>
                   <span className="rule-pill">{c.waiting ? 'Waiting' : c.passed ? 'Passes' : 'Will fail'}</span>
                 </li>
               ))}

@@ -30,13 +30,21 @@ const [acme, globex, initech, sunrise, northwind] = await Vendor.create([
   { name: 'Northwind Electricals', email: 'finance@northwind.test', gstin: '24WXYZA7890B1Z4', paymentTermsDays: 21 },
 ]);
 
+// The vendor portal login used in the demo: Globex's billing desk.
+const globexDesk = await User.create({ name: 'Ravi (Globex Logistics)', email: 'vendor@demo.com', role: 'vendor', vendor: globex._id, passwordHash });
+
 const [poAcme, poGlobex, poSunrise, poNorth] = await PurchaseOrder.create([
-  { poNumber: 'PO-1001', vendor: acme._id, amount: 50000 },
-  { poNumber: 'PO-1002', vendor: globex._id, amount: 120000 },
-  { poNumber: 'PO-1003', vendor: sunrise._id, amount: 90000 },
-  { poNumber: 'PO-1004', vendor: northwind._id, amount: 40000 },
+  { poNumber: 'PO-1001', vendor: acme._id, amount: 50000, createdBy: finance._id, requestedBy: 'Admin office', neededBy: ahead(30),
+    description: 'Office stationery and printer supplies', purpose: 'Yearly stock for the head office, agreed at a fixed rate card' },
+  { poNumber: 'PO-1002', vendor: globex._id, amount: 120000, createdBy: finance._id, requestedBy: 'Warehouse, Chennai', neededBy: ahead(60),
+    description: 'Inbound freight from Mumbai port, July to September', purpose: 'Moving imported stock to the Chennai warehouse for the festive season' },
+  { poNumber: 'PO-1003', vendor: sunrise._id, amount: 90000, createdBy: finance._id, requestedBy: 'Facilities', neededBy: ahead(90),
+    description: 'Housekeeping for the head office, 6 months', purpose: 'Replaces the old cleaning contract that ended in June' },
+  { poNumber: 'PO-1004', vendor: northwind._id, amount: 40000, createdBy: finance._id, requestedBy: 'Plant 2 maintenance', neededBy: ahead(20),
+    description: 'Rewiring and panel repairs at plant 2', purpose: 'Safety audit found two panels that must be fixed before the next inspection' },
 ]);
-await PurchaseOrder.create({ poNumber: 'PO-0990', vendor: acme._id, amount: 15000, status: 'closed' });
+await PurchaseOrder.create({ poNumber: 'PO-0990', vendor: acme._id, amount: 15000, status: 'closed', createdBy: finance._id, requestedBy: 'Admin office',
+  description: 'Chairs and a table for the new meeting room', purpose: 'Fit-out of the second-floor meeting room; delivered and closed' });
 
 const vendorsById = new Map([acme, globex, initech, sunrise, northwind].map((v) => [String(v._id), v]));
 const posById = new Map([poAcme, poGlobex, poSunrise, poNorth].map((p) => [String(p._id), p]));
@@ -67,23 +75,24 @@ const invoices = [
   { invoiceNumber: 'GLX-310', vendor: globex._id, purchaseOrder: poGlobex._id, amount: 60000, invoiceDate: ago(70), dueDate: ago(25),
     status: 'partially_paid', submittedAt: ago(69), approvedAt: ago(66),
     payments: [{ amount: 25000, date: ago(20), method: 'NEFT', reference: 'UTR4490117' }],
-    history: [h('submitted', finance, ago(69)), h('verified', finance, ago(69)), h('approved', manager, ago(66)), h('payment 25000', finance, ago(20), 'UTR4490117')] },
+    history: [h('submitted', globexDesk, ago(69)), h('verified', finance, ago(69)), h('approved', manager, ago(66)), h('payment 25000', finance, ago(20), 'UTR4490117')] },
   // Ready to pay: one badly overdue, one due in 2 days, one comfortable
   { invoiceNumber: 'ACME/24-25/131', vendor: acme._id, amount: 8000, invoiceDate: ago(100), dueDate: ago(70),
     status: 'approved', submittedAt: ago(99), approvedAt: ago(95),
     history: [h('submitted', finance, ago(99)), h('verified', finance, ago(99)), h('approved', manager, ago(95))] },
   { invoiceNumber: 'GLX-311', vendor: globex._id, amount: 15000, invoiceDate: ago(43), dueDate: ahead(2),
     status: 'approved', submittedAt: ago(42), approvedAt: ago(40),
-    history: [h('submitted', finance, ago(42)), h('verified', finance, ago(42)), h('approved', manager, ago(40))] },
+    history: [h('submitted', globexDesk, ago(42)), h('verified', finance, ago(42)), h('approved', manager, ago(40))] },
   { invoiceNumber: 'SFS-2318', vendor: sunrise._id, purchaseOrder: poSunrise._id, amount: 24000, invoiceDate: ago(8), dueDate: ahead(22),
     status: 'approved', submittedAt: ago(7), approvedAt: ago(5),
     history: [h('submitted', finance, ago(7)), h('verified', finance, ago(7)), h('approved', manager, ago(5), 'Matches March cleaning contract')] },
-  // Waiting for approval: one fresh, one stale (triggers a reminder)
+  // Waiting for approval after finance review (stale, so it triggers a reminder)
   { invoiceNumber: 'GLX-312', vendor: globex._id, purchaseOrder: poGlobex._id, amount: 30000, invoiceDate: ago(5), dueDate: ahead(40),
-    status: 'pending_approval', submittedAt: ago(4), extra: { poInvoicedTotal: 60000 },
-    history: [h('submitted', finance, ago(4)), h('verified', finance, ago(4))] },
+    status: 'pending_approval', submittedAt: ago(4), reviewedAt: ago(4), extra: { poInvoicedTotal: 60000 },
+    history: [h('submitted', globexDesk, ago(4)), h('verified', globexDesk, ago(4)), h('forwarded', finance, ago(4), 'Freight matches the September loads')] },
+  // Waiting for finance review: passed the checks, not yet looked at
   { invoiceNumber: 'NWE-0462', vendor: northwind._id, purchaseOrder: poNorth._id, amount: 12750, invoiceDate: ago(1), dueDate: ahead(20),
-    status: 'pending_approval', submittedAt: ago(1),
+    status: 'pending_review', submittedAt: ago(1),
     history: [h('submitted', finance, ago(1)), h('verified', finance, ago(1))] },
   // Needs fixing: inactive vendor; and one rejected by the manager
   { invoiceNumber: 'INI-77', vendor: initech._id, amount: 5000, invoiceDate: ago(3), dueDate: ahead(12),
@@ -108,5 +117,5 @@ const withBills = invoices.map(({ extra, ...inv }, n) => {
 });
 await Invoice.create(withBills);
 
-console.log('Seeded. Logins (password "password123"): admin@demo.com, finance@demo.com, manager@demo.com');
+console.log('Seeded. Logins (password "password123"): vendor@demo.com, finance@demo.com, manager@demo.com, admin@demo.com');
 await mongoose.disconnect();

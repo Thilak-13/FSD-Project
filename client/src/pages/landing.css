@@ -84,7 +84,7 @@
 .lp-col.after li::before { content: '✓'; background: var(--ok-bg); color: var(--ok); }
 
 /* the four stages as one divided strip */
-.lp-route { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); counter-reset: st; background: #fff; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.lp-route { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); counter-reset: st; background: #fff; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
 .lp-route li { counter-increment: st; padding: 1.4rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: .45rem; border-left: 1px solid var(--line); }
 .lp-route li:first-child { border-left: 0; }
 .lp-route b { font-size: 1.05rem; font-weight: 600; }
@@ -123,12 +123,11 @@
 .lp-faq-q { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 1.2rem 0; background: none; border: 0; font: inherit; font-weight: 500; font-size: 1.05rem; color: var(--ink); text-align: left; cursor: pointer; }
 .lp-faq-q:hover { color: var(--action); }
 .lp-faq-icon { flex: none; width: 24px; text-align: center; font-size: 1.4rem; font-weight: 300; line-height: 1; color: var(--muted); }
-.lp-faq-a { overflow: hidden; }
+/* Height animates from 0, so the answer starts hidden and never flashes at full size. */
+.lp-faq-a { overflow: hidden; height: 0; opacity: 0; will-change: height; }
 .lp-faq-a p { color: var(--muted); line-height: 1.65; padding: 0 2.5rem 1.3rem 0; max-width: 70ch; }
 
-.lp-end { margin: clamp(4rem, 9vw, 7rem) clamp(1rem, 5vw, 4rem) 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: clamp(2.5rem, 6vw, 4.5rem); }
-.lp-end h2 { color: var(--ink); font-size: clamp(1.6rem, 3vw, 2.3rem); font-weight: 600; line-height: 1.15; letter-spacing: -0.025em; max-width: 22ch; }
-.lp-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; align-items: center; padding: 2.5rem clamp(1rem, 5vw, 4rem); color: var(--muted); font-size: .9rem; }
+.lp-foot { margin-top: clamp(3.5rem, 8vw, 6rem); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; align-items: center; padding: 2.5rem clamp(1rem, 5vw, 4rem); color: var(--muted); font-size: .9rem; }
 .lp-foot .brand { color: var(--ink); padding: 0; font-size: 1rem; }
 
 .lp .skip-link { position: absolute; left: -9999px; }
@@ -142,7 +141,7 @@
   .lp-demo { max-width: 520px; width: 100%; margin: 0 auto; }
   .lp-alert { margin-left: 0; }
   .lp-route { grid-template-columns: 1fr 1fr; }
-  .lp-route li:nth-child(3) { border-left: 0; }
+  .lp-route li:nth-child(odd) { border-left: 0; }
   .lp-route li:nth-child(n+3) { border-top: 1px solid var(--line); }
   .lp-feature, .lp-feature.flip { grid-template-columns: 1fr; }
   .lp-feature.flip .lp-feature-copy { order: 0; }
@@ -165,3 +164,5 @@
 @media (prefers-reduced-motion: reduce) {
   .lp * { transition: none !important; }
 }
+.lp-foot a { color: var(--muted); }
+.lp-foot a:hover { color: var(--ink); }

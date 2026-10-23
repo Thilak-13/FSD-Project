@@ -7,6 +7,7 @@ import Journey from '../components/Journey';
 import StatusBadge from '../components/StatusBadge';
 import { money, date, paidOf, balanceOf, dueText, isOverdue } from '../format';
 import './invoice-detail.css';
+import { PO_TOLERANCE_TEXT } from '../../../server/services/verify.js';
 import useTitle from '../useTitle';
 
 export const CHECK_TITLES = {
@@ -14,14 +15,24 @@ export const CHECK_TITLES = {
   not_duplicate: 'Not a duplicate of an earlier invoice',
   amount_positive: 'Amount is valid',
   due_date_valid: 'Due date is after the invoice date',
-  po_match: 'Matches the purchase order (2% tolerance)',
+  po_match: `Matches the purchase order (${PO_TOLERANCE_TEXT} tolerance)`,
+};
+
+// What to do when a check fails, shown next to the failure.
+export const FIX_TIPS = {
+  vendor_active: 'This vendor is marked inactive. Finance can reactivate it from the Vendors page if purchases from them continue.',
+  not_duplicate: 'Search Invoices for this number first. If the vendor reused it by mistake, ask them for a corrected bill.',
+  amount_positive: 'Check the line items: the total has to be more than ₹0.',
+  due_date_valid: 'Use the due date printed on the bill. It must be on or after the invoice date.',
+  po_match: 'Link the right purchase order, ask purchasing to raise the PO amount, or ask the vendor for a revised bill.',
 };
 
 function historyText(h) {
   if (h.action.startsWith('payment ')) return `Payment of ${money(Number(h.action.slice(8)))} recorded`;
   return {
-    submitted: 'Invoice entered', verified: 'Passed all automatic checks, sent for approval',
+    submitted: 'Invoice sent', verified: 'Passed all automatic checks',
     verification_failed: 'Failed automatic checks', resubmitted: 'Corrected and resubmitted',
+    forwarded: 'Reviewed by finance, sent for approval', returned: 'Returned to the vendor',
     approved: 'Approved', rejected: 'Rejected',
   }[h.action] || h.action;
 }
@@ -42,33 +53,49 @@ function NextStep({ inv, reload }) {
     try { await fn(); toast(msg); setNote(''); setRejecting(false); await reload(); } catch (e) { setError(errMsg(e)); }
     setBusy(false);
   };
-  const lastRejection = [...inv.history].reverse().find((h) => h.action === 'rejected');
+  const lastNote = (action) => [...inv.history].reverse().find((h) => h.action === action)?.note;
   const s = inv.status;
+  // One small form for the two "send it back with a reason" actions: finance returning, a manager rejecting.
+  const reasonForm = (label, placeholder, url, done) => (
+    <form className="inline-form" onSubmit={(e) => { e.preventDefault(); run(() => api.post(url, { note }), done); }}>
+      <label>{label}<textarea value={note} onChange={(e) => setNote(e.target.value)} required autoFocus placeholder={placeholder} /></label>
+      <div className="btn-row">
+        <button className="btn danger" disabled={busy}>{url.endsWith('reject') ? 'Reject invoice' : 'Return to vendor'}</button>
+        <button type="button" className="btn ghost" onClick={() => setRejecting(false)}>Cancel</button>
+      </div>
+    </form>
+  );
 
   let title, body, action = null;
-  if (s === 'verification_failed') {
-    title = 'Fix the failed checks';
-    body = can('finance') ? 'The checks below show what is wrong. Correct the invoice and resubmit it; the checks run again automatically.' : 'Finance needs to correct this invoice before it can be approved.';
-    if (can('finance')) action = <Link className="btn primary" to={`/invoices/${inv._id}/edit`}>Fix and resubmit</Link>;
-  } else if (s === 'rejected') {
-    title = 'Rejected by a manager';
-    body = <>Reason: <q>{lastRejection?.note}</q> {can('finance') && 'Correct the invoice and resubmit it if it should still be paid.'}</>;
-    if (can('finance')) action = <Link className="btn" to={`/invoices/${inv._id}/edit`}>Correct and resubmit</Link>;
+  if (['verification_failed', 'returned', 'rejected'].includes(s)) {
+    const why = s === 'returned' ? <>Finance sent it back: <q>{lastNote('returned')}</q></>
+      : s === 'rejected' ? <>A manager rejected it: <q>{lastNote('rejected')}</q></>
+      : 'Some automatic checks failed. Each one below says what to change.';
+    title = can('vendor') ? 'Fix and resubmit' : 'Back with the vendor';
+    body = <>{why} {can('vendor') ? 'Correct the invoice and resubmit it; the checks run again straight away.' : 'The vendor has been told and can resubmit a corrected bill.'}</>;
+    if (can('vendor')) action = <Link className="btn primary" to={`/invoices/${inv._id}/edit`}>Fix and resubmit</Link>;
+  } else if (s === 'pending_review') {
+    title = can('finance') ? 'Review this bill' : 'With finance for review';
+    body = can('finance')
+      ? 'Every automatic check passed. Compare the details with the bill, then send it to a manager for approval or return it to the vendor with what to change.'
+      : 'Finance will look it over and then send it to a manager for approval.';
+    if (can('finance')) action = rejecting
+      ? reasonForm('What should the vendor change?', 'For example: attach the signed delivery note', `/invoices/${inv._id}/return`, 'Returned to the vendor with your note.')
+      : (
+        <div className="btn-row">
+          <button className="btn primary" disabled={busy} onClick={() => run(() => api.post(`/invoices/${inv._id}/forward`, {}), 'Sent to the managers for approval.')}>Send to a manager</button>
+          <button className="btn ghost danger-text" onClick={() => setRejecting(true)}>Return to vendor…</button>
+        </div>
+      );
   } else if (s === 'pending_approval' && can('manager') && [...inv.history].reverse().find((h) => ['submitted', 'resubmitted'].includes(h.action))?.by?._id === user.id) {
     title = 'Waiting for another approver';
     body = 'You entered this invoice, so a different manager must approve or reject it. This keeps entering and approving separate.';
   } else if (s === 'pending_approval') {
     title = can('manager') ? 'Your decision is needed' : 'Waiting for a manager to approve';
-    body = can('manager') ? 'Every automatic check passed. Approve to send it to finance for payment, or reject it with a reason.' : 'Managers have been notified. You will get an alert when they decide.';
-    if (can('manager')) action = rejecting ? (
-      <form className="inline-form" onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/invoices/${inv._id}/reject`, { note }), 'Invoice rejected. Finance has been notified.'); }}>
-        <label>Why are you rejecting it?<textarea value={note} onChange={(e) => setNote(e.target.value)} required autoFocus placeholder="For example: quantity does not match the delivery note" /></label>
-        <div className="btn-row">
-          <button className="btn danger" disabled={busy}>Reject invoice</button>
-          <button type="button" className="btn ghost" onClick={() => setRejecting(false)}>Cancel</button>
-        </div>
-      </form>
-    ) : (
+    body = can('manager') ? 'It passed every automatic check and finance has reviewed it. Approve to send it for payment, or reject it with a reason.' : 'Managers have been notified. You will get an alert when they decide.';
+    if (can('manager')) action = rejecting
+      ? reasonForm('Why are you rejecting it?', 'For example: quantity does not match the delivery note', `/invoices/${inv._id}/reject`, 'Invoice rejected. Finance and the vendor have been told.')
+      : (
       <div className="btn-row">
         <button className="btn approve" disabled={busy} onClick={() => run(() => api.post(`/invoices/${inv._id}/approve`, { note: '' }), 'Invoice approved. Finance has been notified to pay it.')}>Approve</button>
         <button className="btn ghost danger-text" onClick={() => setRejecting(true)}>Reject…</button>
@@ -139,7 +166,7 @@ function BillPane({ id, name, has }) {
       {has && !file && !error && <div className="doc-empty" role="status"><span className="skel w60" /><span className="skel w80" /><span className="skel w40" /></div>}
       {file && (file.type.startsWith('image/')
         ? <img src={file.url} alt={`Bill ${name}`} />
-        : <iframe src={`${file.url}#toolbar=0&navpanes=0`} title={`Bill ${name}`} />)}
+        : <iframe src={`${file.url}#toolbar=0&navpanes=0&view=FitH`} title={`Bill ${name}`} />)}
     </section>
   );
 }
@@ -210,7 +237,8 @@ export default function InvoiceDetail() {
               {inv.checks.map((c) => (
                 <li key={c.rule} className={c.passed ? 'pass' : 'fail'}>
                   <span className="rule-dot" aria-hidden="true" />
-                  <span><b>{CHECK_TITLES[c.rule] || c.rule}</b>{(!c.passed || c.rule === 'po_match') && <small>{c.message}</small>}</span>
+                  <span><b>{CHECK_TITLES[c.rule] || c.rule}</b>{(!c.passed || c.rule === 'po_match') && <small>{c.message}</small>}
+                    {!c.passed && FIX_TIPS[c.rule] && <small className="fix-tip">{FIX_TIPS[c.rule]}</small>}</span>
                   <span className="rule-pill">{c.passed ? 'Passed' : 'Flagged'}</span>
                 </li>
               ))}

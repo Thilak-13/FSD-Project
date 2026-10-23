@@ -2,14 +2,17 @@ import mongoose from 'mongoose';
 const { Schema, model } = mongoose;
 const ref = (name) => ({ type: Schema.Types.ObjectId, ref: name });
 
-export const ROLES = ['admin', 'finance', 'manager'];
-export const STATUSES = ['submitted', 'verification_failed', 'pending_approval', 'approved', 'rejected', 'partially_paid', 'paid'];
+export const ROLES = ['admin', 'finance', 'manager', 'vendor'];
+// Vendor submits -> checks -> finance review -> manager approval -> finance pays. 'returned' and 'rejected' go back to the vendor.
+export const STATUSES = ['submitted', 'verification_failed', 'pending_review', 'returned', 'pending_approval', 'approved', 'rejected', 'partially_paid', 'paid'];
 
 export const User = model('User', new Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ROLES, required: true },
+  // Vendor users belong to one vendor and only ever see that vendor's invoices and POs.
+  vendor: ref('Vendor'),
 }, { timestamps: true }));
 
 export const Vendor = model('Vendor', new Schema({
@@ -24,6 +27,12 @@ export const PurchaseOrder = model('PurchaseOrder', new Schema({
   poNumber: { type: String, required: true, unique: true, trim: true },
   vendor: { ...ref('Vendor'), required: true },
   amount: { type: Number, required: true, min: 0 },
+  // Why the order exists: what is being bought, the reason, who asked for it and by when.
+  description: { type: String, trim: true },
+  purpose: { type: String, trim: true },
+  requestedBy: { type: String, trim: true },
+  neededBy: Date,
+  createdBy: ref('User'),
   status: { type: String, enum: ['open', 'closed'], default: 'open' },
 }, { timestamps: true }));
 
@@ -43,15 +52,18 @@ const invoiceSchema = new Schema({
   history: [{ _id: false, action: String, by: ref('User'), at: { type: Date, default: Date.now }, note: String }],
   payments: [{ amount: { type: Number, required: true }, date: { type: Date, default: Date.now }, method: String, reference: String }],
   submittedAt: Date,
+  reviewedAt: Date,
   approvedAt: Date,
   paidAt: Date,
   // Concurrent saves (e.g. two payments at once) fail with VersionError instead of overpaying.
 }, { timestamps: true, optimisticConcurrency: true });
 // One live invoice per vendor + number, enforced by the database so two simultaneous submits can't both pass.
-// Failed and rejected invoices are left out so they can be corrected and resubmitted.
+// Failed, returned and rejected invoices are left out so they can be corrected and resubmitted.
+// Named so it is built alongside the older index that predates the review step.
 invoiceSchema.index({ vendor: 1, invoiceNumber: 1 }, {
+  name: 'one_live_invoice_per_number',
   unique: true,
-  partialFilterExpression: { status: { $in: ['pending_approval', 'approved', 'partially_paid', 'paid'] } },
+  partialFilterExpression: { status: { $in: ['pending_review', 'pending_approval', 'approved', 'partially_paid', 'paid'] } },
 });
 export const Invoice = model('Invoice', invoiceSchema);
 

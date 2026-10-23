@@ -1,4 +1,7 @@
-export const PO_TOLERANCE = 0.02;
+export const PO_TOLERANCE = 0.005;
+export const PO_TOLERANCE_TEXT = `${PO_TOLERANCE * 100}%`;
+// Most a PO can be billed in total, rounded to paise (120000 * 1.005 is 120599.999... in floating point).
+export const poLimit = (amount) => Math.round(amount * (1 + PO_TOLERANCE) * 100) / 100;
 export const GST_RATES = [0, 5, 12, 18, 28];
 
 // Shared with the client so the form shows the same totals the server stores.
@@ -25,12 +28,12 @@ export function verify(inv, { vendor, duplicateCount = 0, po, poInvoicedTotal = 
     else if (po.status !== 'open') add('po_match', false, `PO ${po.poNumber} is closed`);
     else if (String(po.vendor) !== String(vendor?._id ?? inv.vendor)) add('po_match', false, `PO ${po.poNumber} belongs to a different vendor`);
     else {
-      const total = poInvoicedTotal + inv.amount;
-      const limit = po.amount * (1 + PO_TOLERANCE);
+      const total = r2(poInvoicedTotal + inv.amount);
+      const limit = poLimit(po.amount);
       add('po_match', total <= limit,
         total <= limit
           ? `Within PO ${po.poNumber} amount (${total} of ${po.amount})`
-          : `Exceeds PO ${po.poNumber}: ${total} invoiced vs ${po.amount} (+${PO_TOLERANCE * 100}% allowed)`);
+          : `Exceeds PO ${po.poNumber}: ${total} invoiced vs ${po.amount} (+${PO_TOLERANCE_TEXT} allowed)`);
     }
   }
   return checks;

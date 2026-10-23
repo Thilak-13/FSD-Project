@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
+import { MotionConfig, motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, DEMO_USERS, DEMO_PASSWORD } from '../auth';
 import { errMsg } from '../api';
@@ -11,7 +11,7 @@ const CHECKS = [
   'Not a duplicate of an earlier invoice',
   'Amount is valid',
   'Due date is after the invoice date',
-  'Within PO-1003 (₹90,000, 2% tolerance)',
+  'Within PO-1003 (₹90,000, 0.5% tolerance)',
 ];
 
 // Hero demo timeline: one invoice moving through the real flow.
@@ -86,7 +86,7 @@ function HeroDemo() {
 }
 
 const COMPARE = [
-  ['Invoices arrive by email and WhatsApp, and someone retypes them into a sheet', 'Finance enters each bill once, with the PDF attached to it'],
+  ['Invoices arrive by email and WhatsApp, and someone retypes them into a sheet', 'Vendors send each bill themselves, with the PDF attached to it'],
   ['Duplicates and over-billing are caught, if at all, after payment', 'Five checks run the moment it is entered, including the PO amount'],
   ['Approvals wait in someone\'s inbox while the due date passes', 'The manager gets an alert and approves with the bill on screen'],
   ['"Has this been paid?" means scrolling through bank statements', 'Every payment, part or full, is recorded against its invoice'],
@@ -102,31 +102,28 @@ function FaqItem({ q, a }) {
     <div className="lp-faq-item">
       <button type="button" className="lp-faq-q" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
         {q}
-        <motion.span className="lp-faq-icon" aria-hidden="true" animate={{ rotate: open ? 45 : 0 }} transition={{ duration: 0.2, ease: EASE }}>+</motion.span>
+        <motion.span className="lp-faq-icon" aria-hidden="true" initial={false} animate={{ rotate: open ? 45 : 0 }} transition={{ duration: 0.25, ease: EASE }}>+</motion.span>
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div id={id} className="lp-faq-a" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28, ease: EASE }}>
-            <p>{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <motion.div id={id} className="lp-faq-a" initial={false} aria-hidden={!open} inert={open ? undefined : ''}
+        animate={open ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+        transition={{ height: { duration: 0.32, ease: EASE }, opacity: { duration: open ? 0.25 : 0.15, delay: open ? 0.06 : 0 } }}>
+        <p>{a}</p>
+      </motion.div>
     </div>
   );
 }
 
 const FAQ = [
   ['What does InvoiceFlow check automatically?',
-    'That the vendor is active, the invoice number has not been used before for that vendor, the amount is valid, the due date is after the invoice date and, if a purchase order is linked, that the total invoiced stays within the PO amount plus 2%.'],
+    'That the vendor is active, the invoice number has not been used before for that vendor, the amount is valid, the due date is after the invoice date and, if a purchase order is linked, that the total invoiced stays within the PO amount plus 0.5%.'],
   ['What happens when an invoice fails a check?',
-    'It goes back to Finance marked "Needs fixing", with the reason. They correct it and resubmit, and the checks run again. It never reaches a manager until it passes.'],
-  ['Can the person who entered an invoice also approve it?',
-    'No. Whoever entered an invoice cannot approve or reject it, not even an admin. Entering and approving stay with different people.'],
+    'It goes straight back to the vendor marked "Needs fixing", with the reason and what to change. They correct it and resubmit, and the checks run again. Finance only sees bills that pass.'],
+  ['Who looks at a bill before it is paid?',
+    'Three people, in order. The vendor sends it, finance reviews it and either sends it to a manager or returns it with a note, and a manager approves or rejects it. Whoever entered a bill can never approve it.'],
   ['Can we pay an invoice in parts?',
     'Yes. Record each payment with its date, method and UTR or cheque number. The invoice shows how much is still to pay and can never be overpaid.'],
   ['Who gets reminded, and when?',
-    'Finance is reminded three days before an invoice is due. Finance and Admin are alerted once it is overdue. Managers are nudged when an invoice has waited more than two days for approval. Nobody gets the same reminder twice in a day.'],
+    'Finance is nudged when a bill has waited more than two days for review, and three days before an invoice is due. Finance and Admin are alerted once it is overdue. Managers are nudged when an invoice has waited more than two days for approval. Vendors hear when their bill is returned, rejected or paid. Nobody gets the same reminder twice in a day.'],
   ['Does it move money?',
     'No. Payments are made from your bank as usual; InvoiceFlow records them so everyone can see what is paid and what is still owed.'],
 ];
@@ -160,11 +157,11 @@ export default function Landing() {
       <main id="lp-main">
         <section className="lp-hero">
           <div className="lp-hero-copy">
-            <h1>Stop chasing invoices for approval.</h1>
+            <h1>Vendor bills, checked and paid on time.</h1>
             <p>
-              InvoiceFlow checks every vendor bill against its purchase order, sends it to the right
-              approver and reminds your team before anything goes overdue. From the bill arriving to
-              the vendor being paid, everyone can see where it stands.
+              Vendors send their bills here. Each one is checked against the vendor and its purchase
+              order, reviewed by finance and approved by a manager before it is paid, and everyone
+              involved can see where it is.
             </p>
             <div className="lp-ctas">
               <a href="#try" className="lp-btn primary">Try the live demo</a>
@@ -176,8 +173,8 @@ export default function Landing() {
 
         <section className="lp-section" aria-labelledby="compare-h">
           <div className="lp-head">
-            <h2 id="compare-h">Where invoices get stuck today, and what changes</h2>
-            <p>Most teams already have an approval process. It just lives in inboxes and spreadsheets, where nobody can see it.</p>
+            <h2 id="compare-h">Before and after</h2>
+            <p>What changes when bills come through InvoiceFlow instead of email and spreadsheets.</p>
           </div>
           <div className="lp-compare">
             <div className="lp-col before">
@@ -197,8 +194,9 @@ export default function Landing() {
             <p>Each stage belongs to one person, and the next person is told as soon as it is their turn.</p>
           </div>
           <ol className="lp-route">
-            <li><b>Enter</b><span>Finance types in the bill, links the PO and attaches the PDF.</span></li>
-            <li><b>Check</b><span>The system runs five checks in under a second. Failures go straight back with the reason.</span></li>
+            <li><b>Send</b><span>The vendor enters the bill, picks the purchase order it is for and attaches the PDF.</span></li>
+            <li><b>Check</b><span>Five checks run in under a second. Failures go straight back to the vendor with what to change.</span></li>
+            <li><b>Review</b><span>Finance looks it over, then sends it to a manager or returns it to the vendor with a note.</span></li>
             <li><b>Approve</b><span>A manager sees the checks and the bill side by side, then approves or rejects with a note.</span></li>
             <li><b>Pay</b><span>Finance records full or part payments. The invoice closes when the balance reaches zero.</span></li>
           </ol>
@@ -206,7 +204,7 @@ export default function Landing() {
 
         <section className="lp-section" id="features" aria-labelledby="feat-h">
           <div className="lp-head">
-            <h2 id="feat-h">Built around the questions finance teams get asked</h2>
+            <h2 id="feat-h">What it answers</h2>
           </div>
 
           <div className="lp-feature">
@@ -229,7 +227,7 @@ export default function Landing() {
           <div className="lp-feature flip">
             <div className="lp-feature-copy">
               <h3>"Who is holding this up?"</h3>
-              <p>Every invoice shows its next step and whose turn it is. Managers get an alert the moment something needs them, and a reminder if it has waited more than two days.</p>
+              <p>Every invoice shows its next step and whose turn it is. Finance and managers get an alert when a bill reaches them, and a reminder if it has waited more than two days.</p>
             </div>
             <div className="lp-feature-ui" aria-hidden="true">
               <div className="lp-mini">
@@ -261,8 +259,8 @@ export default function Landing() {
 
         <section className="lp-section lp-try" id="try" aria-labelledby="try-h">
           <div className="lp-head">
-            <h2 id="try-h">Try it from each seat</h2>
-            <p>The demo is loaded with real-looking invoices at every stage. Pick a role to sign in; you can switch roles from the sidebar at any time.</p>
+            <h2 id="try-h">Try the demo</h2>
+            <p>The demo has invoices at every stage. Pick a role to sign in; you can switch roles from the sidebar.</p>
           </div>
           <div className="lp-roles">
             {DEMO_USERS.map((d) => (
@@ -286,18 +284,11 @@ export default function Landing() {
           </MotionConfig>
         </section>
 
-        <section className="lp-end">
-          <h2>Get your next invoice from bill to paid without a single follow-up call.</h2>
-          <div className="lp-ctas">
-            <a href="#try" className="lp-btn primary">Try the live demo</a>
-            <Link to="/login" className="lp-btn light">Sign in</Link>
-          </div>
-        </section>
       </main>
 
       <footer className="lp-foot">
         <span className="brand"><span className="brand-mark" aria-hidden="true" />InvoiceFlow</span>
-        <span>Invoice verification and vendor payment tracking. A full-stack project built with MongoDB, Express, React and Node.</span>
+        <Link to="/login">Sign in</Link>
       </footer>
     </div>
   );

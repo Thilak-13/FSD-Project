@@ -10,14 +10,14 @@ export async function auth(req, res, next) {
   } catch {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  const user = await User.findById(payload.id).select('name role').lean();
+  const user = await User.findById(payload.id).select('name role vendor').lean();
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
-  req.user = { id: String(user._id), name: user.name, role: user.role };
+  req.user = { id: String(user._id), name: user.name, role: user.role, vendor: user.vendor && String(user.vendor) };
   next();
 }
 
-// Admin can do everything.
+// Each role does only its own job. Admin manages accounts; it does not enter, approve or pay invoices.
 export const requireRole = (...roles) => (req, res, next) =>
-  req.user.role === 'admin' || roles.includes(req.user.role)
+  roles.includes(req.user.role)
     ? next()
     : res.status(403).json({ error: 'Forbidden' });

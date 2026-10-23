@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { auth, requireRole } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import users from './routes/users.js';
@@ -16,12 +18,18 @@ app.use(express.json({ limit: '100kb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api', auth);
 app.use('/api/users', users);
+// Admin reads the vendor list only to link vendor logins to a vendor.
 app.use('/api/vendors', vendors);
-app.use('/api/purchase-orders', purchaseOrders);
-app.use('/api/invoices', invoices);
+app.use('/api/purchase-orders', requireRole('vendor', 'finance', 'manager'), purchaseOrders);
+app.use('/api/invoices', requireRole('vendor', 'finance', 'manager'), invoices);
 app.use('/api/reports', requireRole('finance', 'manager'), reports);
 app.use('/api/notifications', notifications);
 app.post('/api/reminders/run', requireRole('admin'), async (req, res) => res.json({ sent: await runReminders() }));
+
+// In production the API also serves the built React app (client/dist), so one service runs everything.
+const dist = fileURLToPath(new URL('../client/dist', import.meta.url));
+app.use(express.static(dist));
+app.get(/^(?!\/api\/).*/, (req, res, next) => res.sendFile(path.join(dist, 'index.html'), (err) => err && next()));
 
 app.use((err, req, res, next) => {
   const status = err.status

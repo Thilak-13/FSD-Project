@@ -14,6 +14,8 @@ export const daysUntil = (d) => Math.round((new Date(d) - todayUTC()) / DAY);
 export const STATUS = {
   submitted: { label: 'Checking', tone: 'neutral' },
   verification_failed: { label: 'Needs fixing', tone: 'bad' },
+  pending_review: { label: 'Finance review', tone: 'wait' },
+  returned: { label: 'Returned to vendor', tone: 'bad' },
   pending_approval: { label: 'Waiting for approval', tone: 'wait' },
   rejected: { label: 'Rejected', tone: 'bad' },
   approved: { label: 'Ready to pay', tone: 'pay' },
@@ -22,7 +24,9 @@ export const STATUS = {
 };
 
 // The payment route: the order an invoice moves through.
-export const ROUTE = ['verification_failed', 'pending_approval', 'approved', 'partially_paid', 'paid'];
+export const ROUTE = ['verification_failed', 'pending_review', 'pending_approval', 'approved', 'partially_paid', 'paid'];
+// Back with the vendor to correct and resubmit.
+export const WITH_VENDOR = ['verification_failed', 'returned', 'rejected'];
 
 export const dueText = (inv) => {
   if (inv.status === 'paid') return `Paid ${date(inv.paidAt)}`;

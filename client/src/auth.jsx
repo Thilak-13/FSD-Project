@@ -5,9 +5,10 @@ const AuthContext = createContext(null);
 
 // Seeded demo accounts (see server/seed.js), for one-click login while presenting.
 export const DEMO_USERS = [
-  { role: 'finance', email: 'finance@demo.com', name: 'Farid', does: 'Enters invoices and pays vendors' },
+  { role: 'vendor', email: 'vendor@demo.com', name: 'Ravi', does: 'Sends bills for Globex Logistics' },
+  { role: 'finance', email: 'finance@demo.com', name: 'Farid', does: 'Reviews bills and pays vendors' },
   { role: 'manager', email: 'manager@demo.com', name: 'Meera', does: 'Approves or rejects invoices' },
-  { role: 'admin', email: 'admin@demo.com', name: 'Asha', does: 'Oversees everything, manages users' },
+  { role: 'admin', email: 'admin@demo.com', name: 'Asha', does: 'Manages the vendor, finance and manager accounts' },
 ];
 export const DEMO_PASSWORD = 'password123';
 
@@ -22,10 +23,12 @@ export function AuthProvider({ children }) {
     return data.user;
   };
   const logout = () => { localStorage.clear(); setUser(null); };
-  // Admin can do everything, mirroring the server's requireRole.
-  const can = (...roles) => !!user && (user.role === 'admin' || roles.includes(user.role));
+  // Mirrors the server's requireRole: each role does only its own job.
+  const can = (...roles) => !!user && roles.includes(user.role);
+  // Vendor users see a smaller portal: only their own bills and POs.
+  const isVendor = user?.role === 'vendor';
 
-  return <AuthContext.Provider value={{ user, login, logout, can }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, login, logout, can, isVendor }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);

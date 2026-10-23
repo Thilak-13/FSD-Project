@@ -1,6 +1,6 @@
 import { date, paidOf } from '../format';
 
-// Per-invoice progress: Submitted → Checked → Approved → Paid.
+// Per-invoice progress: Submitted, Checked, Reviewed by finance, Approved, Paid.
 function steps(inv) {
   const s = inv.status;
   const pct = Math.round((paidOf(inv) / inv.amount) * 100);
@@ -9,6 +9,8 @@ function steps(inv) {
     { name: 'Submitted', state: 'done', when: inv.submittedAt || inv.createdAt },
     { name: 'Checked', state: s === 'verification_failed' ? 'failed' : 'done', when: inv.submittedAt,
       note: s === 'verification_failed' ? 'Some checks failed' : 'All checks passed' },
+    { name: 'Reviewed', state: s === 'returned' ? 'failed' : s === 'pending_review' ? 'current' : after(['verification_failed', 'pending_review']) ? 'todo' : 'done',
+      when: inv.reviewedAt, note: s === 'returned' ? 'Returned to vendor' : s === 'pending_review' ? 'With finance' : null },
     { name: 'Approved', state: s === 'rejected' ? 'failed' : s === 'pending_approval' ? 'current' : after(['approved', 'partially_paid', 'paid']) ? 'done' : 'todo',
       when: inv.approvedAt, note: s === 'rejected' ? 'Rejected by manager' : s === 'pending_approval' ? 'Waiting for manager' : null },
     { name: 'Paid', state: s === 'paid' ? 'done' : after(['approved', 'partially_paid']) ? 'current' : 'todo',

@@ -5,12 +5,13 @@ import { useAuth } from '../auth';
 import { useToast } from '../components/Toast';
 import PageHeader from '../components/PageHeader';
 import StatusBadge from '../components/StatusBadge';
-import { money, dueText, balanceOf, isOverdue, STATUS } from '../format';
+import { money, dueText, balanceOf, isOverdue, STATUS, WITH_VENDOR } from '../format';
 import useTitle from '../useTitle';
 
 const TABS = [
   { key: '', label: 'All' },
   { key: 'fix', label: STATUS.verification_failed.label },
+  { key: 'pending_review', label: STATUS.pending_review.label },
   { key: 'pending_approval', label: STATUS.pending_approval.label },
   { key: 'approved', label: STATUS.approved.label },
   { key: 'partially_paid', label: STATUS.partially_paid.label },
@@ -20,7 +21,7 @@ const TABS = [
 ];
 
 export default function Invoices() {
-  const { can } = useAuth();
+  const { can, isVendor } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -43,7 +44,7 @@ export default function Invoices() {
   const setVendor = (v) => { const p = new URLSearchParams(params); v ? p.set('vendor', v) : p.delete('vendor'); setParams(p); };
 
   const inTab = (i, key) => (key === 'overdue' ? isOverdue(i)
-    : key === 'fix' ? ['verification_failed', 'rejected'].includes(i.status)
+    : key === 'fix' ? WITH_VENDOR.includes(i.status)
     : !key || i.status === key);
   const q = search.trim().toLowerCase();
   const list = (all || []).filter((i) => inTab(i, tab) && (!vendor || i.vendor?._id === vendor)
@@ -71,8 +72,9 @@ export default function Invoices() {
 
   return (
     <>
-      <PageHeader title="Invoices">
-        Every vendor invoice and where it is in the approval and payment process.
+      <PageHeader title={isVendor ? 'My invoices' : 'Invoices'}>
+        {isVendor ? 'Every bill you have sent and where it is: checks, finance review, approval and payment.'
+          : 'Every vendor invoice and where it is: checks, finance review, approval and payment.'}
       </PageHeader>
 
       <div className="tabs" role="group" aria-label="Filter by stage">
@@ -84,11 +86,13 @@ export default function Invoices() {
       </div>
 
       <div className="toolbar">
-        <input type="search" placeholder="Search by invoice number or vendor" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search invoices" />
-        <select aria-label="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)}>
-          <option value="">All vendors</option>
-          {vendors?.map((v) => <option key={v._id} value={v._id}>{v.name}</option>)}
-        </select>
+        <input type="search" placeholder={isVendor ? 'Search by invoice number' : 'Search by invoice number or vendor'} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search invoices" />
+        {!isVendor && (
+          <select aria-label="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)}>
+            <option value="">All vendors</option>
+            {vendors?.map((v) => <option key={v._id} value={v._id}>{v.name}</option>)}
+          </select>
+        )}
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -138,10 +142,13 @@ export default function Invoices() {
                     {can('manager') && i.status === 'pending_approval' && (
                       <button className="btn primary xs" disabled={busy} onClick={() => approve([i])} aria-label={`Approve ${i.invoiceNumber}`}>Approve</button>
                     )}
+                    {can('finance') && i.status === 'pending_review' && (
+                      <Link className="btn primary xs" to={`/invoices/${i._id}`} aria-label={`Review ${i.invoiceNumber}`}>Review</Link>
+                    )}
                     {can('finance') && ['approved', 'partially_paid'].includes(i.status) && (
                       <Link className="btn primary xs" to={`/invoices/${i._id}`} aria-label={`Pay ${i.invoiceNumber}`}>Pay</Link>
                     )}
-                    {can('finance') && ['verification_failed', 'rejected'].includes(i.status) && (
+                    {can('vendor') && WITH_VENDOR.includes(i.status) && (
                       <Link className="btn xs" to={`/invoices/${i._id}/edit`} aria-label={`Fix ${i.invoiceNumber}`}>Fix</Link>
                     )}
                   </td>
