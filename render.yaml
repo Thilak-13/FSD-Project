@@ -3,7 +3,7 @@ services:
     name: invoiceflow
     runtime: node
     plan: free
-    buildCommand: cd client && npm ci && npm run build && cd ../server && npm ci --omit=dev
+    buildCommand: cd client && npm ci --include=dev && npm run build && cd ../server && npm ci --omit=dev
     startCommand: cd server && node index.js
     healthCheckPath: /login
     envVars:
